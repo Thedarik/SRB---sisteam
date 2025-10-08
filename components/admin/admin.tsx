@@ -78,6 +78,9 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CertificateManagement } from "@/components/admin/CertificateManagement"
 import { cn } from "@/lib/utils"
 
@@ -296,45 +299,45 @@ const certificateTemplates: CertificateTemplate[] = [
   }
 ]
 
-// Sample data with proper typing
+// Sample data with proper typing - CRM UCHUN
 const adminAnalytics: AnalyticsData[] = [
   {
-    name: "Mening Sertifikatlarim",
+    name: "Jami O'quvchilar",
     value: 247,
     change: 15,
     trend: "up",
-    icon: <Award className="h-4 w-4" />,
-    description: "Ushbu oyda berilgan",
+    icon: <Users className="h-4 w-4" />,
+    description: "Ushbu oyda yangi qo'shildi",
     target: 300,
     percentage: 82
   },
   {
-    name: "Faol O'quvchilar",
-    value: 89,
-    change: 12,
+    name: "Oylik Daromad",
+    value: "45.2M",
+    change: "+12%",
     trend: "up",
-    icon: <Users className="h-4 w-4" />,
-    description: "Joriy kurslar bo'yicha",
+    icon: <TrendingUp className="h-4 w-4" />,
+    description: "UZS - Joriy oy",
+    target: 50,
+    percentage: 90
+  },
+  {
+    name: "O'rtacha Davomad",
+    value: "92%",
+    change: "+5%",
+    trend: "up",
+    icon: <Activity className="h-4 w-4" />,
+    description: "Shu haftalik davomad",
     target: 100,
-    percentage: 89
+    percentage: 92
   },
   {
-    name: "QR Tekshirishlar",
-    value: "1,247",
-    change: "+198",
-    trend: "up",
-    icon: <QrCode className="h-4 w-4" />,
-    description: "Sertifikatlar tekshirildi",
-    target: 1500,
-    percentage: 83
-  },
-  {
-    name: "T Baeol Kurslar",
+    name: "Faol Kurslar",
     value: 12,
     change: 3,
     trend: "up",
-    icon: <CheckSquare className="h-4 w-4" />,
-    description: "Ushbu oyda yakunlandi",
+    icon: <BookOpen className="h-4 w-4" />,
+    description: "Hozirda olib borilmoqda",
     target: 15,
     percentage: 80
   },
@@ -489,7 +492,7 @@ const recentActivities: Activity[] = [
   {
     id: 1,
     type: "student_enrolled",
-    message: "Nazarova Dilnoza 'Graphic Design' kursiga yozildi",
+    message: "Nazarova Dilnoza 'Graphic Design' kursiga yozildi - 2,500,000 UZS to'landi",
     time: "1 soat oldin",
     icon: <UserPlus className="h-4 w-4" />,
     color: "text-blue-600"
@@ -497,26 +500,34 @@ const recentActivities: Activity[] = [
   {
     id: 2,
     type: "assignment_submitted",
-    message: "Abdullayev Jasur 5-topshiriqni yubordi",
+    message: "15 ta o'quvchi bugungi darsda qatnashdi",
     time: "2 soat oldin",
-    icon: <FileCheck className="h-4 w-4" />,
+    icon: <CheckCircle className="h-4 w-4" />,
     color: "text-green-600"
   },
   {
     id: 3,
     type: "certificate_issued",
-    message: "Karimova Malika uchun sertifikat berildi",
-    time: "2 kun oldin",
-    icon: <Award className="h-4 w-4" />,
-    color: "text-purple-600"
+    message: "3 ta yangi to'lov qabul qilindi - Jami: 7,200,000 UZS",
+    time: "3 soat oldin",
+    icon: <TrendingUp className="h-4 w-4" />,
+    color: "text-emerald-600"
   },
   {
     id: 4,
+    type: "student_enrolled",
+    message: "Abdullayev Jasur - to'lov muddati tugayapti (3 kun qoldi)",
+    time: "5 soat oldin",
+    icon: <AlertCircle className="h-4 w-4" />,
+    color: "text-orange-600"
+  },
+  {
+    id: 5,
     type: "course_completed",
-    message: "Digital Marketing kursi yakunlandi",
-    time: "3 kun oldin",
+    message: "Frontend Development 5-modul dars yakunlandi",
+    time: "1 kun oldin",
     icon: <CheckSquare className="h-4 w-4" />,
-    color: "text-emerald-600"
+    color: "text-purple-600"
   },
 ]
 
@@ -527,12 +538,12 @@ const assignments: Assignment[] = [
 ]
 
 const reportCards: ReportCard[] = [
-  { title: "O'quvchilar Hisoboti", desc: "Davomad va rivojlanish", icon: <Users className="h-6 w-6" />, color: "bg-blue-500" },
-  { title: "Kurslar Samaradorligi", desc: "Tugallash ko'rsatkichi", icon: <BookOpen className="h-6 w-6" />, color: "bg-green-500" },
-  { title: "Sertifikatlar Statistikasi", desc: "Berilgan sertifikatlar", icon: <Award className="h-6 w-6" />, color: "bg-purple-500" },
-  { title: "Topshiriqlar Tahlili", desc: "Baholash natijalari", icon: <FileCheck className="h-6 w-6" />, color: "bg-orange-500" },
-  { title: "Moliyaviy Hisobot", desc: "To'lovlar va daromad", icon: <BarChart3 className="h-6 w-6" />, color: "bg-emerald-500" },
-  { title: "Umumiy Ko'rsatkichlar", desc: "Barcha metrikalar", icon: <PieChart className="h-6 w-6" />, color: "bg-pink-500" },
+  { title: "O'quvchilar Hisoboti", desc: "Davomad, rivojlanish va natijalar", icon: <Users className="h-6 w-6" />, color: "bg-blue-500" },
+  { title: "Moliyaviy Hisobot", desc: "To'lovlar, daromad va xarajatlar", icon: <TrendingUp className="h-6 w-6" />, color: "bg-emerald-500" },
+  { title: "Kurslar Samaradorligi", desc: "Tugallash va qoniqish darajasi", icon: <BookOpen className="h-6 w-6" />, color: "bg-green-500" },
+  { title: "Davomad Tahlili", desc: "Kunlik va oylik davomad", icon: <Activity className="h-6 w-6" />, color: "bg-orange-500" },
+  { title: "O'qituvchilar Hisoboti", desc: "Ishlash ko'rsatkichlari", icon: <UserCheck className="h-6 w-6" />, color: "bg-purple-500" },
+  { title: "Umumiy Statistika", desc: "Barcha metrikalar va trendlar", icon: <PieChart className="h-6 w-6" />, color: "bg-pink-500" },
 ]
 
 type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings"
@@ -545,12 +556,90 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [notifications, setNotifications] = useState<number>(5)
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
+  
+  // Add Student Dialog State
+  const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState<boolean>(false)
+  const [newStudent, setNewStudent] = useState({
+    fullName: "",
+    passportNumber: "",
+    phoneNumber: "",
+    group: "",
+    enrollDate: new Date().toISOString()
+  })
+  const [availableGroups, setAvailableGroups] = useState<any[]>([])
 
   // Real-time clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Fetch groups
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await fetch('/api/groups')
+        const result = await response.json()
+        if (result.success) {
+          setAvailableGroups(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching groups:', error)
+      }
+    }
+    fetchGroups()
+  }, [])
+
+  // Handle Add Student
+  const handleAddStudent = async () => {
+    if (!newStudent.fullName || !newStudent.phoneNumber || !newStudent.group) {
+      alert("Iltimos, barcha majburiy maydonlarni to'ldiring!")
+      return
+    }
+
+    try {
+      const response = await fetch('/api/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: newStudent.fullName,
+          phone_number: newStudent.phoneNumber,
+          passport_number: newStudent.passportNumber || null,
+          group_id: newStudent.group,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(result.error || "Xatolik yuz berdi!")
+        return
+      }
+
+      console.log("Yangi o'quvchi qo'shildi:", result.data)
+
+      // Reset form
+      setNewStudent({
+        fullName: "",
+        passportNumber: "",
+        phoneNumber: "",
+        group: "",
+        enrollDate: new Date().toISOString()
+      })
+      setIsAddStudentDialogOpen(false)
+      
+      // Success message
+      alert("✅ O'quvchi muvaffaqiyatli qo'shildi!")
+      
+      // Reload page to show new student
+      window.location.reload()
+    } catch (error) {
+      console.error("Error:", error)
+      alert("Server bilan bog'lanishda xatolik!")
+    }
+  }
 
   const sidebarItems: SidebarItem[] = [
     {
@@ -560,29 +649,28 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       onClick: () => setActiveTab("dashboard")
     },
     {
-      title: "Mening Kurslari",
-      icon: <BookOpen />,
-      badge: "3",
-      isActive: activeTab === "courses",
-      onClick: () => setActiveTab("courses")
-    },
-    {
       title: "O'quvchilar",
       icon: <Users />,
-      badge: "89",
+      badge: "247",
       isActive: activeTab === "students",
       onClick: () => setActiveTab("students")
     },
     {
-      title: "Sertifikatlar",
-      icon: <Award />,
-      badge: "247",
+      title: "Kurslar",
+      icon: <BookOpen />,
+      badge: "12",
+      isActive: activeTab === "courses",
+      onClick: () => setActiveTab("courses")
+    },
+    {
+      title: "Moliyaviy",
+      icon: <TrendingUp />,
       isActive: activeTab === "certificates",
       onClick: () => setActiveTab("certificates")
     },
     {
-      title: "Topshiriqlar",
-      icon: <FileCheck />,
+      title: "Davomad",
+      icon: <CheckSquare />,
       isActive: activeTab === "assignments",
       onClick: () => setActiveTab("assignments")
     },
@@ -659,10 +747,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-green-600 text-white shadow-lg">
                 <GraduationCap className="size-6" />
               </div>
-              <div>
-                <h2 className="font-bold text-lg">CertifyUZ Admin</h2>
-                <p className="text-xs text-muted-foreground">O'quv Markazi Boshqaruvi</p>
-              </div>
+            <div>
+              <h2 className="font-bold text-lg">EduCRM</h2>
+              <p className="text-xs text-muted-foreground">O'quv Markazlar CRM Tizimi</p>
+            </div>
             </div>
 
             <div className="text-xs text-muted-foreground mb-3">
@@ -744,9 +832,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <div className="flex flex-1 items-center justify-between">
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Admin Panel - IT Academy Tashkent
+                IT Academy Tashkent - CRM Dashboard
               </h1>
-              <p className="text-sm text-muted-foreground">O'quv jarayonini boshqaring va nazorat qiling</p>
+              <p className="text-sm text-muted-foreground">O'quvchilar, moliya va o'quv jarayonini boshqaring</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -813,19 +901,26 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         </Badge>
                       </div>
                       <h2 className="text-3xl font-bold">
-                        Salom, Admin! 🎓
+                        Xush kelibsiz! 👋
                       </h2>
                       <p className="max-w-[600px] text-white/80">
-                        Bugun 5 ta yangi o'quvchi qo'shildi va 3 ta topshiriq yuborildi. Barcha kurslar muvaffaqiyatli davom etmoqda.
+                        Bugun 15 ta o'quvchi darsda qatnashdi, 7.2M UZS to'lov qabul qilindi. Davomad ko'rsatkichi 92% ni tashkil etdi.
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        <Button className="rounded-2xl bg-white text-purple-700 hover:bg-white/90">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Yangi Kurs Qo'shish
+                        <Button 
+                          className="rounded-2xl bg-white text-purple-700 hover:bg-white/90"
+                          onClick={() => setIsAddStudentDialogOpen(true)}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Yangi O'quvchi Qo'shish
                         </Button>
                         <Button variant="outline" className="rounded-2xl bg-transparent border-white text-white hover:bg-white/10">
-                          <Award className="mr-2 h-4 w-4" />
-                          Sertifikat Berish
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          To'lov Qabul Qilish
+                        </Button>
+                        <Button variant="outline" className="rounded-2xl bg-transparent border-white text-white hover:bg-white/10">
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Yangi Kurs
                         </Button>
                       </div>
                     </div>
@@ -927,21 +1022,25 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Topshiriqlar bajarildi</span>
-                          <span className="font-semibold">78%</span>
+                          <span className="text-sm text-muted-foreground">To'lovlar (oylik)</span>
+                          <span className="font-semibold text-green-600">90%</span>
                         </div>
-                        <Progress value={78} className="h-2" />
+                        <Progress value={90} className="h-2" />
                       </div>
 
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">O'rtacha baho</span>
-                          <span className="font-semibold text-green-600">4.8</span>
+                          <span className="text-sm text-muted-foreground">Kurs jarayoni</span>
+                          <span className="font-semibold text-blue-600">75%</span>
                         </div>
-                        <Progress value={96} className="h-2" />
+                        <Progress value={75} className="h-2" />
                       </div>
 
-                      <div className="pt-4 border-t">
+                      <div className="pt-4 border-t space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Jami daromad</span>
+                          <span className="font-semibold text-emerald-600">45.2M UZS</span>
+                        </div>
                         <Button variant="secondary" className="w-full rounded-2xl">
                           <BarChart3 className="mr-2 h-4 w-4" />
                           Batafsil Hisobot
@@ -1150,23 +1249,54 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               {/* Students Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold">O'quvchilar</h2>
+                  <h2 className="text-2xl font-bold">O'quvchilar Boshqaruvi</h2>
                   <p className="text-muted-foreground">Barcha o'quvchilar ro'yxati va ularning rivojlanishi</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" className="rounded-2xl">
                     <Filter className="mr-2 h-4 w-4" />
                     Filtr
                   </Button>
                   <Button variant="outline" className="rounded-2xl">
+                    <SendHorizontal className="mr-2 h-4 w-4" />
+                    SMS Yuborish
+                  </Button>
+                  <Button variant="outline" className="rounded-2xl">
                     <DownloadIcon className="mr-2 h-4 w-4" />
                     Export
                   </Button>
-                  <Button className="rounded-2xl">
+                  <Button 
+                    className="rounded-2xl"
+                    onClick={() => setIsAddStudentDialogOpen(true)}
+                  >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    O'quvchi Qo'shish
+                    Yangi O'quvchi
                   </Button>
                 </div>
+              </div>
+
+              {/* Student Stats Quick View */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Jami O'quvchilar", value: "247", icon: <Users className="h-4 w-4" />, color: "text-blue-600", bgColor: "bg-blue-50" },
+                  { label: "Faol", value: "198", icon: <CheckCircle className="h-4 w-4" />, color: "text-green-600", bgColor: "bg-green-50" },
+                  { label: "To'lovda qarzdor", value: "49", icon: <AlertCircle className="h-4 w-4" />, color: "text-orange-600", bgColor: "bg-orange-50" },
+                  { label: "Tugatganlar", value: "89", icon: <Award className="h-4 w-4" />, color: "text-purple-600", bgColor: "bg-purple-50" },
+                ].map((stat, index) => (
+                  <Card key={index} className="rounded-3xl border-2">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2 rounded-xl", stat.bgColor, stat.color)}>
+                          {stat.icon}
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{stat.value}</p>
+                          <p className="text-xs text-muted-foreground">{stat.label}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               {/* Students Grid */}
@@ -1228,11 +1358,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <Eye className="mr-1 h-3 w-3" />
                           Profil
                         </Button>
-                        <Button variant="outline" size="icon" className="rounded-2xl">
-                          <Mail className="h-3 w-3" />
+                        <Button variant="outline" size="icon" className="rounded-2xl" title="SMS yuborish">
+                          <SendHorizontal className="h-3 w-3" />
                         </Button>
-                        <Button variant="outline" size="icon" className="rounded-2xl">
-                          <MoreHorizontal className="h-3 w-3" />
+                        <Button variant="outline" size="icon" className="rounded-2xl" title="Tahrirlash">
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button variant="outline" size="icon" className="rounded-2xl text-red-600 hover:bg-red-50" title="O'chirish">
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </CardFooter>
                     </Card>
@@ -1243,72 +1376,405 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           )}
 
           {activeTab === "certificates" && (
-            <CertificateManagement />
-          )}
-
-          {activeTab === "assignments" && (
             <div className="space-y-6">
-              {/* Assignments Section */}
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold">Topshiriqlar Boshqaruvi</h2>
-                <p className="text-muted-foreground">Topshiriqlarni yarating, tekshiring va baholang</p>
-
-                <div className="flex justify-center gap-4">
+              {/* Financial Dashboard Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Moliyaviy Boshqaruv</h2>
+                  <p className="text-muted-foreground">To'lovlar, daromad va xarajatlarni kuzatib boring</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="rounded-2xl">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filtr
+                  </Button>
                   <Button className="rounded-2xl">
                     <Plus className="mr-2 h-4 w-4" />
-                    Yangi Topshiriq
-                  </Button>
-                  <Button variant="outline" className="rounded-2xl">
-                    <FileCheck className="mr-2 h-4 w-4" />
-                    Tekshirish Kerak
+                    Yangi To'lov
                   </Button>
                 </div>
               </div>
 
-              {/* Quick Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* Financial Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { title: "Jami Topshiriqlar", value: "24", icon: <FileText className="h-5 w-5" />, color: "text-blue-600" },
-                  { title: "Tekshirish Kutmoqda", value: "8", icon: <Clock className="h-5 w-5" />, color: "text-yellow-600" },
-                  { title: "Baholangan", value: "16", icon: <CheckCircle className="h-5 w-5" />, color: "text-green-600" },
-                  { title: "O'rtacha Ball", value: "87", icon: <Target className="h-5 w-5" />, color: "text-purple-600" },
+                  { 
+                    title: "Oylik Daromad", 
+                    value: "45,200,000", 
+                    unit: "UZS",
+                    change: "+12%", 
+                    icon: <TrendingUp className="h-5 w-5" />, 
+                    color: "text-green-600",
+                    bgColor: "bg-green-50"
+                  },
+                  { 
+                    title: "To'langan O'quvchilar", 
+                    value: "198", 
+                    unit: "ta",
+                    change: "+24", 
+                    icon: <Users className="h-5 w-5" />, 
+                    color: "text-blue-600",
+                    bgColor: "bg-blue-50"
+                  },
+                  { 
+                    title: "Kutilayotgan To'lovlar", 
+                    value: "12,500,000", 
+                    unit: "UZS",
+                    change: "49 ta", 
+                    icon: <Clock className="h-5 w-5" />, 
+                    color: "text-orange-600",
+                    bgColor: "bg-orange-50"
+                  },
+                  { 
+                    title: "Oylik Xarajatlar", 
+                    value: "18,750,000", 
+                    unit: "UZS",
+                    change: "-5%", 
+                    icon: <AlertCircle className="h-5 w-5" />, 
+                    color: "text-red-600",
+                    bgColor: "bg-red-50"
+                  },
                 ].map((stat, index) => (
-                  <Card key={index} className="rounded-3xl border-2 text-center">
-                    <CardContent className="p-6">
-                      <div className={cn("mx-auto w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3", stat.color)}>
-                        {stat.icon}
-                      </div>
-                      <h3 className="text-2xl font-bold">{stat.value}</h3>
-                      <p className="text-sm text-muted-foreground">{stat.title}</p>
-                    </CardContent>
-                  </Card>
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={cn("p-3 rounded-2xl", stat.bgColor, stat.color)}>
+                            {stat.icon}
+                          </div>
+                          <Badge variant="secondary" className="rounded-xl">
+                            {stat.change}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">{stat.title}</p>
+                          <div className="flex items-baseline gap-2">
+                            <h3 className="text-2xl font-bold">{stat.value}</h3>
+                            <span className="text-sm text-muted-foreground">{stat.unit}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 ))}
               </div>
 
-              {/* Assignments List */}
-              <Card className="rounded-3xl border-2">
-                <CardHeader>
-                  <CardTitle className="text-xl">Oxirgi Topshiriqlar</CardTitle>
-                  <CardDescription>Eng so'nggi yaratilgan va yuborilgan topshiriqlar</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {assignments.map((assignment, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 rounded-2xl border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <FileCheck className="h-6 w-6 text-primary" />
+              {/* Recent Payments and Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Payments */}
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-xl">Oxirgi To'lovlar</CardTitle>
+                        <CardDescription>Eng so'nggi qabul qilingan to'lovlar</CardDescription>
+                      </div>
+                      <Button variant="ghost" size="icon" className="rounded-2xl">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {[
+                        { name: "Abdullayev Jasur", course: "Frontend Development", amount: "2,500,000", status: "paid", time: "1 soat oldin" },
+                        { name: "Karimova Malika", course: "Digital Marketing", amount: "2,200,000", status: "paid", time: "3 soat oldin" },
+                        { name: "Rakhmonov Bekzod", course: "Graphic Design", amount: "2,500,000", status: "pending", time: "5 soat oldin" },
+                        { name: "Nazarova Dilnoza", course: "Frontend Development", amount: "2,500,000", status: "paid", time: "1 kun oldin" },
+                      ].map((payment, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 rounded-2xl border hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback>{payment.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{payment.name}</p>
+                              <p className="text-xs text-muted-foreground">{payment.course}</p>
+                              <p className="text-xs text-muted-foreground">{payment.time}</p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-medium">{assignment.title}</h4>
-                            <p className="text-sm text-muted-foreground">{assignment.course}</p>
-                            <p className="text-xs text-muted-foreground">Muddat: {assignment.deadline}</p>
+                          <div className="text-right">
+                            <p className="font-semibold text-green-600">{payment.amount} UZS</p>
+                            <Badge variant={payment.status === "paid" ? "default" : "secondary"} className="rounded-xl text-xs">
+                              {payment.status === "paid" ? "To'landi" : "Kutilmoqda"}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">{assignment.submitted}/{assignment.total}</p>
-                          <p className="text-sm text-muted-foreground">Yuborildi</p>
-                          {getStatusBadge(assignment.status)}
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button variant="secondary" className="w-full rounded-2xl">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Barcha To'lovlar
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                {/* Payment Statistics */}
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <CardTitle className="text-xl">To'lovlar Statistikasi</CardTitle>
+                    <CardDescription>Oylik to'lovlar tahlili</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {[
+                      { month: "Yanvar", paid: 38500000, pending: 8500000 },
+                      { month: "Fevral", paid: 42000000, pending: 7200000 },
+                      { month: "Mart", paid: 45200000, pending: 6800000 },
+                      { month: "Aprel", paid: 41000000, pending: 9500000 },
+                    ].map((month, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">{month.month}</span>
+                          <span className="text-muted-foreground">
+                            {(month.paid / 1000000).toFixed(1)}M / {((month.paid + month.pending) / 1000000).toFixed(1)}M UZS
+                          </span>
+                        </div>
+                        <Progress value={(month.paid / (month.paid + month.pending)) * 100} className="h-2" />
+                      </div>
+                    ))}
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-3">
+                    <div className="w-full flex justify-between items-center p-4 rounded-2xl bg-green-50 border border-green-200">
+                      <span className="text-sm font-medium text-green-700">Sof foyda</span>
+                      <span className="text-lg font-bold text-green-700">26.45M UZS</span>
+                    </div>
+                    <Button variant="outline" className="w-full rounded-2xl">
+                      <DownloadIcon className="mr-2 h-4 w-4" />
+                      Hisobot Yuklab Olish
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+
+              {/* Expenses Breakdown */}
+              <Card className="rounded-3xl border-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl">Xarajatlar Taqsimoti</CardTitle>
+                      <CardDescription>Oylik xarajatlar bo'yicha batafsil ma'lumot</CardDescription>
+                    </div>
+                    <Button variant="outline" className="rounded-2xl">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Xarajat Qo'shish
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[
+                      { category: "O'qituvchilar maoshi", amount: "12,000,000", percentage: 64, icon: <Users className="h-5 w-5" />, color: "bg-blue-500" },
+                      { category: "Ofis va kommunal", amount: "4,500,000", percentage: 24, icon: <Building className="h-5 w-5" />, color: "bg-purple-500" },
+                      { category: "Marketing", amount: "2,250,000", percentage: 12, icon: <TrendingUp className="h-5 w-5" />, color: "bg-green-500" },
+                    ].map((expense, index) => (
+                      <div key={index} className="p-6 rounded-3xl border-2 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className={cn("p-3 rounded-2xl text-white", expense.color)}>
+                            {expense.icon}
+                          </div>
+                          <Badge variant="secondary" className="rounded-xl">
+                            {expense.percentage}%
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">{expense.category}</p>
+                          <p className="text-2xl font-bold">{expense.amount}</p>
+                          <p className="text-xs text-muted-foreground">UZS / oy</p>
+                        </div>
+                        <Progress value={expense.percentage} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "assignments" && (
+            <div className="space-y-6">
+              {/* Attendance Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Davomad Boshqaruvi</h2>
+                  <p className="text-muted-foreground">O'quvchilar davomadini kuzatib boring va boshqaring</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="rounded-2xl">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Bugun
+                  </Button>
+                  <Button className="rounded-2xl">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Davomatni Belgilash
+                  </Button>
+                </div>
+              </div>
+
+              {/* Attendance Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {[
+                  { title: "Bugungi Davomad", value: "92%", icon: <CheckCircle className="h-5 w-5" />, color: "text-green-600", bgColor: "bg-green-50" },
+                  { title: "Jami O'quvchilar", value: "247", icon: <Users className="h-5 w-5" />, color: "text-blue-600", bgColor: "bg-blue-50" },
+                  { title: "Kelganlar", value: "227", icon: <UserCheck className="h-5 w-5" />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+                  { title: "Kelmaganlar", value: "20", icon: <XCircle className="h-5 w-5" />, color: "text-red-600", bgColor: "bg-red-50" },
+                ].map((stat, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card className="rounded-3xl border-2">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={cn("p-3 rounded-2xl", stat.bgColor, stat.color)}>
+                            {stat.icon}
+                          </div>
+                        </div>
+                        <h3 className="text-3xl font-bold mb-1">{stat.value}</h3>
+                        <p className="text-sm text-muted-foreground">{stat.title}</p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Today's Attendance and Weekly Stats */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Today's Attendance */}
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Bugungi Davomad</CardTitle>
+                    <CardDescription>Dars bo'yicha ishtirok etish</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {[
+                        { course: "Frontend Development", time: "09:00", present: 25, total: 30, status: "active" },
+                        { course: "Digital Marketing", time: "11:00", present: 18, total: 20, status: "active" },
+                        { course: "Graphic Design", time: "14:00", present: 12, total: 15, status: "upcoming" },
+                        { course: "Backend Development", time: "16:00", present: 0, total: 25, status: "upcoming" },
+                      ].map((lesson, index) => (
+                        <div key={index} className="p-4 rounded-2xl border space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{lesson.course}</h4>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Clock3 className="h-3 w-3" />
+                                {lesson.time}
+                              </p>
+                            </div>
+                            <Badge variant={lesson.status === "active" ? "default" : "secondary"} className="rounded-xl">
+                              {lesson.status === "active" ? "Davom etmoqda" : "Kutilmoqda"}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Ishtirok</span>
+                              <span className="font-medium">{lesson.present}/{lesson.total}</span>
+                            </div>
+                            <Progress value={(lesson.present / lesson.total) * 100} className="h-2" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button variant="secondary" className="w-full rounded-2xl">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Batafsil Ko'rish
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                {/* Weekly Attendance Stats */}
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Haftalik Davomad</CardTitle>
+                    <CardDescription>Oxirgi 7 kunlik statistika</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {[
+                      { day: "Dushanba", percentage: 95, present: 235, total: 247 },
+                      { day: "Seshanba", percentage: 88, present: 217, total: 247 },
+                      { day: "Chorshanba", percentage: 92, present: 227, total: 247 },
+                      { day: "Payshanba", percentage: 90, present: 222, total: 247 },
+                      { day: "Juma", percentage: 85, present: 210, total: 247 },
+                    ].map((day, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">{day.day}</span>
+                          <span className="text-muted-foreground">
+                            {day.present}/{day.total} ({day.percentage}%)
+                          </span>
+                        </div>
+                        <Progress value={day.percentage} className="h-2" />
+                      </div>
+                    ))}
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-3">
+                    <div className="w-full p-4 rounded-2xl bg-blue-50 border border-blue-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-blue-700">Haftalik o'rtacha</span>
+                        <span className="text-2xl font-bold text-blue-700">90%</span>
+                      </div>
+                    </div>
+                    <Button variant="outline" className="w-full rounded-2xl">
+                      <DownloadIcon className="mr-2 h-4 w-4" />
+                      Davomad Hisoboti
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+
+              {/* Students with Low Attendance */}
+              <Card className="rounded-3xl border-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl">Past Davomad Ko'rsatkichlari</CardTitle>
+                      <CardDescription>E'tibor talab qilayotgan o'quvchilar</CardDescription>
+                    </div>
+                    <Button variant="outline" className="rounded-2xl">
+                      <SendHorizontal className="mr-2 h-4 w-4" />
+                      SMS Yuborish
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[
+                      { name: "Rakhmonov Bekzod", course: "Frontend Development", attendance: 65, absent: 7, avatar: "/placeholder.svg" },
+                      { name: "Tursunov Sherzod", course: "Digital Marketing", attendance: 70, absent: 6, avatar: "/placeholder.svg" },
+                      { name: "Aliyeva Nigora", course: "Graphic Design", attendance: 72, absent: 5, avatar: "/placeholder.svg" },
+                    ].map((student, index) => (
+                      <div key={index} className="p-4 rounded-2xl border space-y-3 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 border-2 border-red-200">
+                            <AvatarFallback>{student.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{student.name}</p>
+                            <p className="text-xs text-muted-foreground">{student.course}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Davomad</span>
+                            <span className="font-medium text-red-600">{student.attendance}%</span>
+                          </div>
+                          <Progress value={student.attendance} className="h-2" />
+                          <p className="text-xs text-red-600 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {student.absent} kun kelmadi
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -1442,6 +1908,130 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           )}
         </main>
       </div>
+
+      {/* Add Student Dialog */}
+      <Dialog open={isAddStudentDialogOpen} onOpenChange={setIsAddStudentDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Yangi O'quvchi Qo'shish
+            </DialogTitle>
+            <DialogDescription>
+              O'quvchi ma'lumotlarini kiriting. Qo'shilgan sana va vaqt avtomatik aniqlanadi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-4">
+            {/* Full Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="fullName" className="flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Ism Sharifi <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="fullName"
+                placeholder="Masalan: Abdullayev Jasur Akmalovich"
+                value={newStudent.fullName}
+                onChange={(e) => setNewStudent({ ...newStudent, fullName: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Phone Number */}
+            <div className="grid gap-2">
+              <Label htmlFor="phoneNumber" className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-primary" />
+                Telefon Raqam <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="phoneNumber"
+                placeholder="+998 90 123 45 67"
+                value={newStudent.phoneNumber}
+                onChange={(e) => setNewStudent({ ...newStudent, phoneNumber: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Passport Number (Optional) */}
+            <div className="grid gap-2">
+              <Label htmlFor="passportNumber" className="flex items-center gap-2">
+                <BadgeCheck className="h-4 w-4 text-primary" />
+                Passport Raqami <span className="text-muted-foreground text-xs">(ixtiyoriy)</span>
+              </Label>
+              <Input
+                id="passportNumber"
+                placeholder="AA 1234567"
+                value={newStudent.passportNumber}
+                onChange={(e) => setNewStudent({ ...newStudent, passportNumber: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Group/Course Selection */}
+            <div className="grid gap-2">
+              <Label htmlFor="group" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Guruh/Kurs <span className="text-red-500">*</span>
+              </Label>
+              <Select value={newStudent.group} onValueChange={(value) => setNewStudent({ ...newStudent, group: value })}>
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue placeholder="Guruhni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableGroups.length > 0 ? (
+                    availableGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} - {group.schedule}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Guruhlar yuklanmoqda...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Enroll Date Info */}
+            <div className="p-4 rounded-2xl bg-muted/50 border">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Qo'shilish Sanasi va Vaqti</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {new Date().toLocaleString('uz-UZ', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+                })}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddStudentDialogOpen(false)}
+              className="rounded-2xl"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Bekor Qilish
+            </Button>
+            <Button
+              onClick={handleAddStudent}
+              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              O'quvchi Qo'shish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

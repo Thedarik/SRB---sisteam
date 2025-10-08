@@ -424,7 +424,7 @@ export function CertificateManagement({ className }: CertificateManagementProps)
                                 {/* Course Name */}
                                 <div className="space-y-2">
                                     <Label htmlFor="courseName">Kurs nomi</Label>
-                                    <Select onValueChange={(value) => setFormData(prev => ({ ...prev, courseName: value }))}>
+                                    <Select onValueChange={(value: string) => setFormData(prev => ({ ...prev, courseName: value }))}>
                                         <SelectTrigger className="rounded-2xl">
                                             <SelectValue placeholder="Kurs nomini tanlang" />
                                         </SelectTrigger>
