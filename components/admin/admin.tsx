@@ -1058,6 +1058,72 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     return name.split(' ').map(n => n[0]).join('')
   }
 
+  // Format date to readable Uzbek format
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return "—"
+    
+    try {
+      const date = new Date(dateString)
+      
+      // Check if valid date
+      if (isNaN(date.getTime())) return "—"
+      
+      const months = [
+        'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+        'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+      ]
+      
+      const day = date.getDate()
+      const month = months[date.getMonth()]
+      const year = date.getFullYear()
+      
+      return `${day} ${month} ${year}`
+    } catch (error) {
+      console.error('Date format error:', error)
+      return "—"
+    }
+  }
+
+  // Format date to short format (dd.mm.yyyy)
+  const formatDateShort = (dateString: string): string => {
+    if (!dateString) return "—"
+    
+    try {
+      const date = new Date(dateString)
+      
+      if (isNaN(date.getTime())) return "—"
+      
+      const day = String(date.getDate()).padStart(2, '0')
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const year = date.getFullYear()
+      
+      return `${day}.${month}.${year}`
+    } catch (error) {
+      return "—"
+    }
+  }
+
+  // Format datetime with time (dd.mm.yyyy HH:MM)
+  const formatDateTime = (dateString: string): string => {
+    if (!dateString) return "—"
+    
+    try {
+      const date = new Date(dateString)
+      
+      if (isNaN(date.getTime())) return "—"
+      
+      const day = String(date.getDate()).padStart(2, '0')
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const year = date.getFullYear()
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      
+      return `${day}.${month}.${year} ${hours}:${minutes}`
+    } catch (error) {
+      return "—"
+    }
+  }
+
   // Filter Students
   const getFilteredStudents = () => {
     let filtered = [...studentsData]
@@ -1913,27 +1979,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             <div className="space-y-1">
                               <p className="text-sm text-muted-foreground">Boshlanish</p>
                               <p className="font-medium text-xs">
-                                {group.start_date 
-                                  ? new Date(group.start_date).toLocaleDateString('uz-UZ', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric'
-                                    })
-                                  : "—"
-                                }
+                                {formatDateShort(group.start_date)}
                               </p>
                             </div>
                             <div className="space-y-1">
                               <p className="text-sm text-muted-foreground">Tugash</p>
                               <p className="font-medium text-xs">
-                                {group.end_date 
-                                  ? new Date(group.end_date).toLocaleDateString('uz-UZ', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric'
-                                    })
-                                  : "—"
-                                }
+                                {formatDateShort(group.end_date)}
                               </p>
                             </div>
                           </div>
@@ -2279,11 +2331,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <div className="space-y-1">
                             <p className="text-sm text-muted-foreground">Qo'shilgan sana</p>
                             <p className="font-medium text-xs">
-                              {new Date(student.enrollment_date).toLocaleDateString('uz-UZ', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
+                              {formatDate(student.enrollment_date)}
                             </p>
                           </div>
                         </CardContent>
@@ -3143,9 +3191,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p><strong>O'quvchilar:</strong> {editingGroup.current_students || 0} / {editingGroup.max_students || 30}</p>
-                  <p><strong>Yaratilgan:</strong> {new Date(editingGroup.created_at).toLocaleString('uz-UZ')}</p>
+                  <p><strong>Yaratilgan:</strong> {formatDateTime(editingGroup.created_at)}</p>
                   {editingGroup.updated_at && (
-                    <p><strong>Oxirgi yangilanish:</strong> {new Date(editingGroup.updated_at).toLocaleString('uz-UZ')}</p>
+                    <p><strong>Oxirgi yangilanish:</strong> {formatDateTime(editingGroup.updated_at)}</p>
                   )}
                 </div>
               </div>
@@ -3289,9 +3337,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p><strong>Joriy guruh:</strong> {editingStudent.groups?.name || "Guruh tayinlanmagan"}</p>
-                  <p><strong>Qo'shilgan sana:</strong> {new Date(editingStudent.enrollment_date).toLocaleDateString('uz-UZ')}</p>
+                  <p><strong>Qo'shilgan sana:</strong> {formatDate(editingStudent.enrollment_date)}</p>
                   {editingStudent.updated_at && (
-                    <p><strong>Oxirgi yangilanish:</strong> {new Date(editingStudent.updated_at).toLocaleString('uz-UZ')}</p>
+                    <p><strong>Oxirgi yangilanish:</strong> {formatDateTime(editingStudent.updated_at)}</p>
                   )}
                 </div>
               </div>
