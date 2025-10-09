@@ -19,3 +19,5 @@ ALTER TABLE sms_logs DISABLE ROW LEVEL SECURITY;
 -- Tayyor! Endi o'quvchi qo'shish ishlashi kerak ✅
 -- ============================================
 
+
+

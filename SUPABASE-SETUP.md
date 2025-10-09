@@ -155,3 +155,5 @@ Agar barcha qadamlar to'g'ri bajarilgan bo'lsa:
 
 **Muammolar bo'lsa, men yordam beraman! 💪**
 
+
+

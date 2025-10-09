@@ -299,49 +299,7 @@ const certificateTemplates: CertificateTemplate[] = [
   }
 ]
 
-// Sample data with proper typing - CRM UCHUN
-const adminAnalytics: AnalyticsData[] = [
-  {
-    name: "Jami O'quvchilar",
-    value: 247,
-    change: 15,
-    trend: "up",
-    icon: <Users className="h-4 w-4" />,
-    description: "Ushbu oyda yangi qo'shildi",
-    target: 300,
-    percentage: 82
-  },
-  {
-    name: "Oylik Daromad",
-    value: "45.2M",
-    change: "+12%",
-    trend: "up",
-    icon: <TrendingUp className="h-4 w-4" />,
-    description: "UZS - Joriy oy",
-    target: 50,
-    percentage: 90
-  },
-  {
-    name: "O'rtacha Davomad",
-    value: "92%",
-    change: "+5%",
-    trend: "up",
-    icon: <Activity className="h-4 w-4" />,
-    description: "Shu haftalik davomad",
-    target: 100,
-    percentage: 92
-  },
-  {
-    name: "Faol Kurslar",
-    value: 12,
-    change: 3,
-    trend: "up",
-    icon: <BookOpen className="h-4 w-4" />,
-    description: "Hozirda olib borilmoqda",
-    target: 15,
-    percentage: 80
-  },
-]
+// Sample data with proper typing - CRM UCHUN (moved to component)
 
 const adminCourses: Course[] = [
   {
@@ -555,7 +513,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false)
   const [notifications, setNotifications] = useState<number>(5)
   const [searchQuery, setSearchQuery] = useState<string>("")
-  const [currentTime, setCurrentTime] = useState<Date>(new Date())
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
+  const [isClient, setIsClient] = useState(false)
   
   // Add Student Dialog State
   const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState<boolean>(false)
@@ -564,36 +523,420 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     passportNumber: "",
     phoneNumber: "",
     group: "",
-    enrollDate: new Date().toISOString()
+    enrollDate: ""
   })
   const [availableGroups, setAvailableGroups] = useState<any[]>([])
+  const [studentsData, setStudentsData] = useState<any[]>([])
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
+  const [studentsError, setStudentsError] = useState<string | null>(null)
+  const [groupsData, setGroupsData] = useState<any[]>([])
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false)
+  const [groupsError, setGroupsError] = useState<string | null>(null)
+  
+  // Edit Group Dialog State
+  const [isEditGroupDialogOpen, setIsEditGroupDialogOpen] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<any>(null)
+  const [editGroupData, setEditGroupData] = useState({
+    name: "",
+    course_type: "",
+    schedule: "",
+    start_date: "",
+    end_date: "",
+    teacher_name: "",
+    max_students: 30,
+    status: "active"
+  })
 
-  // Real-time clock
+  // Edit Student Dialog State
+  const [isEditStudentDialogOpen, setIsEditStudentDialogOpen] = useState(false)
+  const [editingStudent, setEditingStudent] = useState<any>(null)
+  const [editStudentData, setEditStudentData] = useState({
+    fullName: "",
+    phoneNumber: "",
+    passportNumber: "",
+    group: "",
+    status: "active"
+  })
+
+  // Add Group State (inline form, not dialog)
+  const [isAddingGroup, setIsAddingGroup] = useState(false)
+  const [newGroup, setNewGroup] = useState({
+    name: "",
+    course_type: "",
+    schedule: "",
+    start_date: "",
+    end_date: "",
+    teacher_name: "",
+    max_students: 30
+  })
+
+  // Filter State
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [filters, setFilters] = useState({
+    status: "all",
+    groupId: "all",
+    searchTerm: ""
+  })
+
+  // Client-side initialization
   useEffect(() => {
+    setIsClient(true)
+    setCurrentTime(new Date())
+  }, [])
+
+  // Real-time clock (only on client)
+  useEffect(() => {
+    if (!isClient) return
+    
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
+  }, [isClient])
+
+  // Fetch groups - Unified function
+  const fetchGroupsForCourses = async () => {
+    setIsLoadingGroups(true)
+    setGroupsError(null)
+    try {
+      const response = await fetch('/api/groups')
+      const result = await response.json()
+      
+      if (result.success) {
+        setGroupsData(result.data || [])
+        setAvailableGroups(result.data || [])  // Dropdown uchun ham yangilash
+        console.log('✅ Guruhlar yuklandi:', result.data.length)
+      } else {
+        setGroupsError(result.error || 'Ma\'lumotlarni yuklashda xatolik')
+        console.error('❌ API xatosi:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Network xatosi:', error)
+      setGroupsError('Server bilan bog\'lanishda xatolik')
+    } finally {
+      setIsLoadingGroups(false)
+    }
+  }
+
+  // Load groups on component mount
+  useEffect(() => {
+    fetchGroupsForCourses()
   }, [])
 
-  // Fetch groups
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const response = await fetch('/api/groups')
-        const result = await response.json()
-        if (result.success) {
-          setAvailableGroups(result.data)
-        }
-      } catch (error) {
-        console.error('Error fetching groups:', error)
+  // Fetch students - Real backend data
+  const fetchStudents = async () => {
+    setIsLoadingStudents(true)
+    setStudentsError(null)
+    try {
+      const response = await fetch('/api/students')
+      const result = await response.json()
+      
+      if (result.success) {
+        setStudentsData(result.data || [])
+        console.log('✅ O\'quvchilar yuklandi:', result.data.length)
+      } else {
+        setStudentsError(result.error || 'Ma\'lumotlarni yuklashda xatolik')
+        console.error('❌ API xatosi:', result.error)
       }
+    } catch (error) {
+      console.error('❌ Network xatosi:', error)
+      setStudentsError('Server bilan bog\'lanishda xatolik')
+    } finally {
+      setIsLoadingStudents(false)
     }
-    fetchGroups()
+  }
+
+  // Load students on component mount
+  useEffect(() => {
+    fetchStudents()
   }, [])
+
+  // Open Edit Group Dialog
+  const openEditGroupDialog = (group: any) => {
+    setEditingGroup(group)
+    setEditGroupData({
+      name: group.name || "",
+      course_type: group.course_type || "",
+      schedule: group.schedule || "",
+      start_date: group.start_date || "",
+      end_date: group.end_date || "",
+      teacher_name: group.teacher_name || "",
+      max_students: group.max_students || 30,
+      status: group.status || "active"
+    })
+    setIsEditGroupDialogOpen(true)
+  }
+
+  // Handle Edit Group
+  const handleEditGroup = async () => {
+    // Frontend validation
+    if (!editGroupData.name?.trim()) {
+      alert("❌ Guruh nomini kiriting!")
+      return
+    }
+
+    if (!editGroupData.course_type?.trim()) {
+      alert("❌ Kurs turini kiriting!")
+      return
+    }
+
+    if (!editingGroup) {
+      alert("❌ Tahrirlash uchun guruh tanlanmagan!")
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/groups/${editingGroup.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editGroupData.name.trim(),
+          course_type: editGroupData.course_type.trim(),
+          schedule: editGroupData.schedule?.trim() || null,
+          start_date: editGroupData.start_date || null,
+          end_date: editGroupData.end_date || null,
+          teacher_name: editGroupData.teacher_name?.trim() || null,
+          max_students: editGroupData.max_students || 30,
+          status: editGroupData.status || "active"
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("❌ Server xatosi:", result)
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      console.log("✅ Guruh muvaffaqiyatli yangilandi:", result.data)
+
+      // Reset form and close dialog
+      setEditingGroup(null)
+      setEditGroupData({
+        name: "",
+        course_type: "",
+        schedule: "",
+        start_date: "",
+        end_date: "",
+        teacher_name: "",
+        max_students: 30,
+        status: "active"
+      })
+      setIsEditGroupDialogOpen(false)
+      
+      // Success message
+      alert("✅ Guruh muvaffaqiyatli yangilandi!")
+      
+      // Refresh groups list
+      fetchGroupsForCourses()
+    } catch (error) {
+      console.error("❌ Network error:", error)
+      alert("❌ Server bilan bog'lanishda xatolik! Iltimos, internet aloqangizni tekshiring.")
+    }
+  }
+
+  // Open Edit Student Dialog
+  const openEditStudentDialog = (student: any) => {
+    setEditingStudent(student)
+    setEditStudentData({
+      fullName: student.full_name || "",
+      phoneNumber: student.phone_number || "",
+      passportNumber: student.passport_number || "",
+      group: student.group_id || "",
+      status: student.status || "active"
+    })
+    setIsEditStudentDialogOpen(true)
+  }
+
+  // Handle Edit Student
+  const handleEditStudent = async () => {
+    // Frontend validation
+    if (!editStudentData.fullName?.trim()) {
+      alert("❌ Ism sharifni kiriting!")
+      return
+    }
+
+    if (!editStudentData.phoneNumber?.trim()) {
+      alert("❌ Telefon raqamni kiriting!")
+      return
+    }
+
+    if (!editStudentData.group) {
+      alert("❌ Guruhni tanlang!")
+      return
+    }
+
+    if (!editingStudent) {
+      alert("❌ Tahrirlash uchun o'quvchi tanlanmagan!")
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/students/${editingStudent.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: editStudentData.fullName.trim(),
+          phone_number: editStudentData.phoneNumber.trim(),
+          passport_number: editStudentData.passportNumber?.trim() || null,
+          group_id: editStudentData.group,
+          status: editStudentData.status
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("❌ Server xatosi:", result)
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      console.log("✅ O'quvchi muvaffaqiyatli yangilandi:", result.data)
+
+      // Reset form and close dialog
+      setEditingStudent(null)
+      setEditStudentData({
+        fullName: "",
+        phoneNumber: "",
+        passportNumber: "",
+        group: "",
+        status: "active"
+      })
+      setIsEditStudentDialogOpen(false)
+      
+      // Success message
+      alert("✅ O'quvchi muvaffaqiyatli yangilandi!")
+      
+      // Refresh students and groups lists
+      fetchStudents()
+      fetchGroupsForCourses()
+    } catch (error) {
+      console.error("❌ Network error:", error)
+      alert("❌ Server bilan bog'lanishda xatolik! Iltimos, internet aloqangizni tekshiring.")
+    }
+  }
+
+  // Handle Add Group
+  const handleAddGroup = async () => {
+    // Frontend validation
+    if (!newGroup.name?.trim()) {
+      alert("❌ Guruh nomini kiriting!")
+      return
+    }
+
+    if (!newGroup.course_type?.trim()) {
+      alert("❌ Kurs turini kiriting!")
+      return
+    }
+
+    try {
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newGroup.name.trim(),
+          course_type: newGroup.course_type.trim(),
+          schedule: newGroup.schedule?.trim() || null,
+          start_date: newGroup.start_date || null,
+          end_date: newGroup.end_date || null,
+          teacher_name: newGroup.teacher_name?.trim() || null,
+          max_students: newGroup.max_students || 30,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("❌ Server xatosi:", result)
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      console.log("✅ Yangi guruh qo'shildi:", result.data)
+
+      // Reset form
+      setNewGroup({
+        name: "",
+        course_type: "",
+        schedule: "",
+        start_date: "",
+        end_date: "",
+        teacher_name: "",
+        max_students: 30
+      })
+      setIsAddingGroup(false)
+      
+      // Success message
+      alert("✅ Guruh muvaffaqiyatli qo'shildi!")
+      
+      // Refresh groups list
+      fetchGroupsForCourses()
+    } catch (error) {
+      console.error("❌ Network error:", error)
+      alert("❌ Server bilan bog'lanishda xatolik! Iltimos, internet aloqangizni tekshiring.")
+    }
+  }
+
+  // Handle Delete Student
+  const handleDeleteStudent = async (student: any) => {
+    // Confirmation
+    const confirmed = confirm(
+      `❓ Haqiqatan ham "${student.full_name}" ni o'chirmoqchimisiz?\n\n` +
+      `Bu o'quvchining barcha ma'lumotlari o'chiriladi va qayta tiklab bo'lmaydi.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/students/${student.id}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("❌ Server xatosi:", result)
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      console.log("✅ O'quvchi muvaffaqiyatli o'chirildi")
+
+      // Success message
+      alert("✅ O'quvchi muvaffaqiyatli o'chirildi!")
+      
+      // Refresh students and groups lists
+      fetchStudents()
+      fetchGroupsForCourses()
+    } catch (error) {
+      console.error("❌ Network error:", error)
+      alert("❌ Server bilan bog'lanishda xatolik! Iltimos, internet aloqangizni tekshiring.")
+    }
+  }
 
   // Handle Add Student
   const handleAddStudent = async () => {
-    if (!newStudent.fullName || !newStudent.phoneNumber || !newStudent.group) {
-      alert("Iltimos, barcha majburiy maydonlarni to'ldiring!")
+    // Frontend validation
+    if (!newStudent.fullName?.trim()) {
+      alert("❌ Ism sharifni kiriting!")
+      return
+    }
+
+    if (!newStudent.phoneNumber?.trim()) {
+      alert("❌ Telefon raqamni kiriting!")
+      return
+    }
+
+    if (!newStudent.group) {
+      alert("❌ Guruhni tanlang!")
       return
     }
 
@@ -604,9 +947,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          full_name: newStudent.fullName,
-          phone_number: newStudent.phoneNumber,
-          passport_number: newStudent.passportNumber || null,
+          full_name: newStudent.fullName.trim(),
+          phone_number: newStudent.phoneNumber.trim(),
+          passport_number: newStudent.passportNumber?.trim() || null,
           group_id: newStudent.group,
         }),
       })
@@ -614,11 +957,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const result = await response.json()
 
       if (!response.ok) {
-        alert(result.error || "Xatolik yuz berdi!")
+        // User-friendly error messages
+        console.error("❌ Server xatosi:", result)
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
         return
       }
 
-      console.log("Yangi o'quvchi qo'shildi:", result.data)
+      console.log("✅ Yangi o'quvchi qo'shildi:", result.data)
 
       // Reset form
       setNewStudent({
@@ -626,18 +971,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         passportNumber: "",
         phoneNumber: "",
         group: "",
-        enrollDate: new Date().toISOString()
+        enrollDate: ""
       })
       setIsAddStudentDialogOpen(false)
       
       // Success message
       alert("✅ O'quvchi muvaffaqiyatli qo'shildi!")
       
-      // Reload page to show new student
-      window.location.reload()
+      // Refresh students AND groups lists (guruh soni yangilash uchun)
+      fetchStudents()
+      fetchGroupsForCourses()
     } catch (error) {
-      console.error("Error:", error)
-      alert("Server bilan bog'lanishda xatolik!")
+      console.error("❌ Network error:", error)
+      alert("❌ Server bilan bog'lanishda xatolik! Iltimos, internet aloqangizni tekshiring.")
     }
   }
 
@@ -651,14 +997,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     {
       title: "O'quvchilar",
       icon: <Users />,
-      badge: "247",
+      badge: isClient ? studentsData.length.toString() : "0",
       isActive: activeTab === "students",
       onClick: () => setActiveTab("students")
     },
     {
       title: "Kurslar",
       icon: <BookOpen />,
-      badge: "12",
+      badge: isClient ? groupsData.length.toString() : "0",
       isActive: activeTab === "courses",
       onClick: () => setActiveTab("courses")
     },
@@ -712,6 +1058,132 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     return name.split(' ').map(n => n[0]).join('')
   }
 
+  // Filter Students
+  const getFilteredStudents = () => {
+    let filtered = [...studentsData]
+
+    // Filter by status
+    if (filters.status !== "all") {
+      filtered = filtered.filter(student => student.status === filters.status)
+    }
+
+    // Filter by group
+    if (filters.groupId !== "all") {
+      filtered = filtered.filter(student => student.group_id === filters.groupId)
+    }
+
+    // Filter by search term
+    if (filters.searchTerm.trim()) {
+      const searchLower = filters.searchTerm.toLowerCase()
+      filtered = filtered.filter(student => 
+        student.full_name?.toLowerCase().includes(searchLower) ||
+        student.phone_number?.toLowerCase().includes(searchLower) ||
+        student.passport_number?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    return filtered
+  }
+
+  const filteredStudents = getFilteredStudents()
+
+  // Reset Filters
+  const resetFilters = () => {
+    setFilters({
+      status: "all",
+      groupId: "all",
+      searchTerm: ""
+    })
+  }
+
+  // Check if filters are active
+  const hasActiveFilters = filters.status !== "all" || filters.groupId !== "all" || filters.searchTerm.trim() !== ""
+
+  // Dynamic analytics data (only calculated on client after data loads)
+  const adminAnalytics: AnalyticsData[] = isClient ? [
+    {
+      name: "Jami O'quvchilar",
+      value: studentsData.length,
+      change: studentsData.filter(s => s.status === 'active').length,
+      trend: "up",
+      icon: <Users className="h-4 w-4" />,
+      description: "Faol o'quvchilar",
+      target: 300,
+      percentage: Math.round((studentsData.length / 300) * 100)
+    },
+    {
+      name: "Oylik Daromad",
+      value: "45.2M",
+      change: "+12%",
+      trend: "up",
+      icon: <TrendingUp className="h-4 w-4" />,
+      description: "UZS - Joriy oy",
+      target: 50,
+      percentage: 90
+    },
+    {
+      name: "O'rtacha Davomad",
+      value: "92%",
+      change: "+5%",
+      trend: "up",
+      icon: <Activity className="h-4 w-4" />,
+      description: "Shu haftalik davomad",
+      target: 100,
+      percentage: 92
+    },
+    {
+      name: "Faol Guruhlar",
+      value: groupsData.filter(g => g.status === 'active').length,
+      change: groupsData.length,
+      trend: "up",
+      icon: <BookOpen className="h-4 w-4" />,
+      description: "Jami guruhlar",
+      target: 15,
+      percentage: Math.round((groupsData.filter(g => g.status === 'active').length / 15) * 100)
+    },
+  ] : [
+    {
+      name: "Jami O'quvchilar",
+      value: 0,
+      change: 0,
+      trend: "up",
+      icon: <Users className="h-4 w-4" />,
+      description: "Yuklanmoqda...",
+      target: 300,
+      percentage: 0
+    },
+    {
+      name: "Oylik Daromad",
+      value: "0",
+      change: "0",
+      trend: "up",
+      icon: <TrendingUp className="h-4 w-4" />,
+      description: "Yuklanmoqda...",
+      target: 50,
+      percentage: 0
+    },
+    {
+      name: "O'rtacha Davomad",
+      value: "0%",
+      change: "0%",
+      trend: "up",
+      icon: <Activity className="h-4 w-4" />,
+      description: "Yuklanmoqda...",
+      target: 100,
+      percentage: 0
+    },
+    {
+      name: "Faol Guruhlar",
+      value: 0,
+      change: 0,
+      trend: "up",
+      icon: <BookOpen className="h-4 w-4" />,
+      description: "Yuklanmoqda...",
+      target: 15,
+      percentage: 0
+    },
+  ]
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* Animated Background */}
@@ -754,7 +1226,11 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
 
             <div className="text-xs text-muted-foreground mb-3">
-              {currentTime.toLocaleTimeString()} • {currentTime.toLocaleDateString()}
+              {isClient && currentTime ? (
+                `${currentTime.toLocaleTimeString()} • ${currentTime.toLocaleDateString()}`
+              ) : (
+                '...'
+              )}
             </div>
 
             <div className="relative">
@@ -897,7 +1373,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         </Badge>
                         <Badge className="bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 rounded-xl">
                           <Activity className="h-3 w-3 mr-1" />
-                          3 Faol Kurs
+                          {isClient ? groupsData.filter(g => g.status === 'active').length : 0} Faol Guruh
                         </Badge>
                       </div>
                       <h2 className="text-3xl font-bold">
@@ -1056,83 +1532,85 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-xl">Faol Kurslar</CardTitle>
-                      <CardDescription>Hozirda olib borilayotgan kurslar</CardDescription>
+                      <CardTitle className="text-xl">Faol Guruhlar</CardTitle>
+                      <CardDescription>Hozirda olib borilayotgan guruhlar</CardDescription>
                     </div>
-                    <Button variant="outline" className="rounded-2xl">
+                    <Button variant="outline" className="rounded-2xl" onClick={() => setActiveTab("courses")}>
                       <BookOpen className="mr-2 h-4 w-4" />
-                      Barcha Kurslar
+                      Barcha Guruhlar
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {adminCourses.map((course, index) => (
-                      <motion.div
-                        key={course.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        whileHover={{ scale: 1.02, y: -5 }}
-                      >
-                        <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                                <BookOpen className="h-6 w-6 text-primary" />
+                  {isLoadingGroups ? (
+                    <div className="text-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                      <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
+                    </div>
+                  ) : groupsData.length === 0 ? (
+                    <div className="text-center py-8">
+                      <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                      <p className="text-sm text-muted-foreground">Hali guruhlar yo'q</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {groupsData.slice(0, 6).map((group, index) => (
+                        <motion.div
+                          key={group.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                          whileHover={{ scale: 1.02, y: -5 }}
+                        >
+                          <Card className="overflow-hidden rounded-3xl border-2 hover:border-primary/50 transition-all duration-300">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                  <BookOpen className="h-6 w-6 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <CardTitle className="text-base leading-tight truncate">{group.name}</CardTitle>
+                                  {getStatusBadge(group.status)}
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <CardTitle className="text-base leading-tight truncate">{course.title}</CardTitle>
-                                {getStatusBadge(course.status)}
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="pb-3 space-y-3">
-                            <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+                            </CardHeader>
+                            <CardContent className="pb-3 space-y-3">
+                              <p className="text-sm text-muted-foreground">{group.course_type}</p>
 
-                            <div className="space-y-2">
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>O'quvchilar: {course.students}/{course.totalStudents}</span>
-                                <span>{course.progress}%</span>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                  <span>O'quvchilar: {group.current_students || 0}/{group.max_students || 30}</span>
+                                  <span>{Math.round(((group.current_students || 0) / (group.max_students || 30)) * 100)}%</span>
+                                </div>
+                                <Progress value={((group.current_students || 0) / (group.max_students || 30)) * 100} className="h-2" />
                               </div>
-                              <Progress value={course.progress} className="h-2" />
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Davomiyligi</p>
-                                <p className="font-semibold">{course.duration}</p>
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Jadval</p>
+                                <p className="text-sm font-medium">{group.schedule || "—"}</p>
                               </div>
-                              <div>
-                                <p className="text-muted-foreground">Daraja</p>
-                                <p className="font-semibold">{course.level}</p>
-                              </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Sertifikatlar</p>
-                                <p className="font-semibold">{course.certificates}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Kategoriya</p>
-                                <p className="font-semibold">{course.category}</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="flex gap-2 pt-3">
-                            <Button variant="secondary" className="flex-1 rounded-2xl text-xs">
-                              <Eye className="mr-1 h-3 w-3" />
-                              Boshqarish
-                            </Button>
-                            <Button variant="outline" size="icon" className="rounded-2xl">
-                              <MoreHorizontal className="h-3 w-3" />
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </div>
+                              {group.teacher_name && (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">O'qituvchi</p>
+                                  <p className="text-sm font-medium">{group.teacher_name}</p>
+                                </div>
+                              )}
+                            </CardContent>
+                            <CardFooter className="flex gap-2 pt-3">
+                              <Button variant="secondary" className="flex-1 rounded-2xl text-xs">
+                                <Eye className="mr-1 h-3 w-3" />
+                                Boshqarish
+                              </Button>
+                              <Button variant="outline" size="icon" className="rounded-2xl">
+                                <MoreHorizontal className="h-3 w-3" />
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </>
@@ -1143,104 +1621,351 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               {/* Courses Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold">Mening Kurslarim</h2>
-                  <p className="text-muted-foreground">Barcha kurslarni boshqaring va nazorat qiling</p>
+                  <h2 className="text-2xl font-bold">Guruhlar / Kurslar</h2>
+                  <p className="text-muted-foreground">Barcha guruhlarni boshqaring va nazorat qiling</p>
                 </div>
                 <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="rounded-2xl"
+                    onClick={fetchGroupsForCourses}
+                    disabled={isLoadingGroups}
+                  >
+                    <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingGroups && "animate-spin")} />
+                    Yangilash
+                  </Button>
                   <Button variant="outline" className="rounded-2xl">
                     <Filter className="mr-2 h-4 w-4" />
                     Filtr
                   </Button>
-                  <Button className="rounded-2xl">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Yangi Kurs
+                  <Button 
+                    className="rounded-2xl"
+                    onClick={() => setIsAddingGroup(!isAddingGroup)}
+                    variant={isAddingGroup ? "default" : "default"}
+                  >
+                    {isAddingGroup ? (
+                      <>
+                        <X className="mr-2 h-4 w-4" />
+                        Bekor Qilish
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Yangi Guruh
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
 
-              {/* Courses Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {adminCourses.map((course, index) => (
+              {/* Add Group Form - Inline */}
+              <AnimatePresence>
+                {isAddingGroup && (
                   <motion.div
-                    key={course.id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    exit={{ opacity: 0, y: -20 }}
                   >
-                    <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg">
+                    <Card className="rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-blue-50 to-purple-50">
                       <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                              <BookOpen className="h-8 w-8 text-primary" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-lg">{course.title}</CardTitle>
-                              {getStatusBadge(course.status)}
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-2">{course.description}</p>
+                        <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                          ➕ Yangi Guruh Yaratish
+                        </CardTitle>
+                        <CardDescription>
+                          Barcha zarur ma'lumotlarni kiriting. O'quvchilar soni 0 dan boshlanadi.
+                        </CardDescription>
                       </CardHeader>
-
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">O'quvchilar</span>
-                            <span className="font-medium">{course.students}/{course.totalStudents}</span>
+                      <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Group Name */}
+                          <div className="md:col-span-2 space-y-2">
+                            <Label htmlFor="newGroupName" className="flex items-center gap-2 text-base">
+                              <BookOpen className="h-5 w-5 text-primary" />
+                              Guruh Nomi <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              id="newGroupName"
+                              placeholder="Masalan: Frontend Development - Ertalabki"
+                              value={newGroup.name}
+                              onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+                              className="rounded-2xl h-12 text-base"
+                            />
                           </div>
-                          <Progress value={(course.students / course.totalStudents) * 100} className="h-2" />
+
+                          {/* Course Type */}
+                          <div className="space-y-2">
+                            <Label htmlFor="newCourseType" className="flex items-center gap-2 text-base">
+                              <GraduationCap className="h-5 w-5 text-primary" />
+                              Kurs Turi <span className="text-red-500">*</span>
+                            </Label>
+                            <Input
+                              id="newCourseType"
+                              placeholder="Masalan: Frontend Development"
+                              value={newGroup.course_type}
+                              onChange={(e) => setNewGroup({ ...newGroup, course_type: e.target.value })}
+                              className="rounded-2xl h-12"
+                            />
+                          </div>
+
+                          {/* Max Students */}
+                          <div className="space-y-2">
+                            <Label htmlFor="newMaxStudents" className="flex items-center gap-2 text-base">
+                              <Users className="h-5 w-5 text-primary" />
+                              Maksimal O'quvchilar
+                            </Label>
+                            <Input
+                              id="newMaxStudents"
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={newGroup.max_students}
+                              onChange={(e) => setNewGroup({ ...newGroup, max_students: parseInt(e.target.value) || 30 })}
+                              className="rounded-2xl h-12"
+                            />
+                          </div>
+
+                          {/* Schedule */}
+                          <div className="md:col-span-2 space-y-2">
+                            <Label htmlFor="newSchedule" className="flex items-center gap-2 text-base">
+                              <CalendarIcon className="h-5 w-5 text-primary" />
+                              Dars Jadvali
+                            </Label>
+                            <Input
+                              id="newSchedule"
+                              placeholder="Masalan: Dush-Chor-Juma 09:00-12:00"
+                              value={newGroup.schedule}
+                              onChange={(e) => setNewGroup({ ...newGroup, schedule: e.target.value })}
+                              className="rounded-2xl h-12"
+                            />
+                          </div>
+
+                          {/* Teacher Name */}
+                          <div className="space-y-2">
+                            <Label htmlFor="newTeacherName" className="flex items-center gap-2 text-base">
+                              <User className="h-5 w-5 text-primary" />
+                              O'qituvchi
+                            </Label>
+                            <Input
+                              id="newTeacherName"
+                              placeholder="Masalan: Rustam Toshmatov"
+                              value={newGroup.teacher_name}
+                              onChange={(e) => setNewGroup({ ...newGroup, teacher_name: e.target.value })}
+                              className="rounded-2xl h-12"
+                            />
+                          </div>
+
+                          {/* Dates */}
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-base">
+                              <CalendarIcon className="h-5 w-5 text-primary" />
+                              Sanalar
+                            </Label>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label htmlFor="newStartDate" className="text-xs text-muted-foreground">Boshlanish</Label>
+                                <Input
+                                  id="newStartDate"
+                                  type="date"
+                                  value={newGroup.start_date}
+                                  onChange={(e) => setNewGroup({ ...newGroup, start_date: e.target.value })}
+                                  className="rounded-xl mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="newEndDate" className="text-xs text-muted-foreground">Tugash</Label>
+                                <Input
+                                  id="newEndDate"
+                                  type="date"
+                                  value={newGroup.end_date}
+                                  onChange={(e) => setNewGroup({ ...newGroup, end_date: e.target.value })}
+                                  className="rounded-xl mt-1"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Kurs jarayoni</span>
-                            <span className="font-medium">{course.progress}%</span>
-                          </div>
-                          <Progress value={course.progress} className="h-2" />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                          <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Boshlanish</p>
-                            <p className="font-medium text-xs">{course.startDate}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Tugash</p>
-                            <p className="font-medium text-xs">{course.endDate}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 pt-2 border-t">
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-blue-600">{course.certificates}</p>
-                            <p className="text-xs text-muted-foreground">Sertifikatlar</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-green-600">{course.duration}</p>
-                            <p className="text-xs text-muted-foreground">Davomiyligi</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-purple-600">{course.level}</p>
-                            <p className="text-xs text-muted-foreground">Daraja</p>
-                          </div>
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsAddingGroup(false)
+                              setNewGroup({
+                                name: "",
+                                course_type: "",
+                                schedule: "",
+                                start_date: "",
+                                end_date: "",
+                                teacher_name: "",
+                                max_students: 30
+                              })
+                            }}
+                            className="flex-1 rounded-2xl h-12"
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Bekor Qilish
+                          </Button>
+                          <Button
+                            onClick={handleAddGroup}
+                            className="flex-1 rounded-2xl h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          >
+                            <Save className="mr-2 h-4 w-4" />
+                            Guruh Yaratish
+                          </Button>
                         </div>
                       </CardContent>
-
-                      <CardFooter className="flex gap-2">
-                        <Button variant="secondary" className="flex-1 rounded-2xl">
-                          <Eye className="mr-2 h-4 w-4" />
-                          Boshqarish
-                        </Button>
-                        <Button variant="outline" className="flex-1 rounded-2xl">
-                          <Edit className="mr-2 h-4 w-4" />
-                          Tahrirlash
-                        </Button>
-                      </CardFooter>
                     </Card>
                   </motion.div>
-                ))}
-              </div>
+                )}
+              </AnimatePresence>
+
+              {/* Loading State */}
+              {isLoadingGroups && !isAddingGroup && (
+                <div className="text-center py-12">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                  <p className="text-muted-foreground">Guruhlar yuklanmoqda...</p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {groupsError && (
+                <Card className="rounded-3xl border-2 border-red-200 bg-red-50">
+                  <CardContent className="p-6 text-center">
+                    <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-3" />
+                    <h3 className="font-semibold text-red-900 mb-2">Xatolik yuz berdi</h3>
+                    <p className="text-red-700 mb-4">{groupsError}</p>
+                    <Button onClick={fetchGroupsForCourses} className="rounded-2xl">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Qayta urinish
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Empty State */}
+              {!isLoadingGroups && !groupsError && groupsData.length === 0 && (
+                <Card className="rounded-3xl border-2">
+                  <CardContent className="p-12 text-center">
+                    <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <h3 className="font-semibold text-xl mb-2">Hali guruhlar yo'q</h3>
+                    <p className="text-muted-foreground mb-6">Birinchi guruhni qo'shish uchun yuqoridagi tugmani bosing</p>
+                    <Button className="rounded-2xl">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Birinchi Guruhni Qo'shish
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Courses Grid - Real Data */}
+              {!isLoadingGroups && !groupsError && groupsData.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {groupsData.map((group, index) => (
+                    <motion.div
+                      key={group.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                    >
+                      <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                <BookOpen className="h-8 w-8 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <CardTitle className="text-lg">{group.name}</CardTitle>
+                                {getStatusBadge(group.status)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Kurs turi:</p>
+                            <p className="text-sm font-semibold">{group.course_type}</p>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                          {/* Schedule */}
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground">Dars jadvali</p>
+                            <p className="font-medium text-sm">{group.schedule || "Jadval kiritilmagan"}</p>
+                          </div>
+
+                          {/* Students Progress */}
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">O'quvchilar</span>
+                              <span className="font-medium">
+                                {group.current_students || 0} / {group.max_students || 30}
+                              </span>
+                            </div>
+                            <Progress 
+                              value={((group.current_students || 0) / (group.max_students || 30)) * 100} 
+                              className="h-2" 
+                            />
+                          </div>
+
+                          {/* Dates */}
+                          <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                            <div className="space-y-1">
+                              <p className="text-sm text-muted-foreground">Boshlanish</p>
+                              <p className="font-medium text-xs">
+                                {group.start_date 
+                                  ? new Date(group.start_date).toLocaleDateString('uz-UZ', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })
+                                  : "—"
+                                }
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-muted-foreground">Tugash</p>
+                              <p className="font-medium text-xs">
+                                {group.end_date 
+                                  ? new Date(group.end_date).toLocaleDateString('uz-UZ', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })
+                                  : "—"
+                                }
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Teacher */}
+                          {group.teacher_name && (
+                            <div className="pt-2 border-t">
+                              <p className="text-sm text-muted-foreground">O'qituvchi</p>
+                              <p className="font-medium text-sm">{group.teacher_name}</p>
+                            </div>
+                          )}
+                        </CardContent>
+
+                        <CardFooter className="flex gap-2">
+                          <Button variant="secondary" className="flex-1 rounded-2xl">
+                            <Eye className="mr-2 h-4 w-4" />
+                            Boshqarish
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 rounded-2xl"
+                            onClick={() => openEditGroupDialog(group)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Tahrirlash
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1253,9 +1978,22 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   <p className="text-muted-foreground">Barcha o'quvchilar ro'yxati va ularning rivojlanishi</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" className="rounded-2xl">
+                  <Button 
+                    variant="outline" 
+                    className="rounded-2xl"
+                    onClick={fetchStudents}
+                    disabled={isLoadingStudents}
+                  >
+                    <RefreshCw className={cn("mr-2 h-4 w-4", isLoadingStudents && "animate-spin")} />
+                    Yangilash
+                  </Button>
+                  <Button 
+                    variant={hasActiveFilters ? "default" : "outline"} 
+                    className="rounded-2xl"
+                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  >
                     <Filter className="mr-2 h-4 w-4" />
-                    Filtr
+                    Filtr {hasActiveFilters && `(${filteredStudents.length})`}
                   </Button>
                   <Button variant="outline" className="rounded-2xl">
                     <SendHorizontal className="mr-2 h-4 w-4" />
@@ -1275,13 +2013,138 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </div>
               </div>
 
+              {/* Filter Panel */}
+              <AnimatePresence>
+                {isFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <Card className="rounded-3xl border-2 border-primary/20 bg-primary/5">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <Filter className="h-5 w-5 text-primary" />
+                            <h3 className="font-semibold text-lg">Filtrlar</h3>
+                          </div>
+                          {hasActiveFilters && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={resetFilters}
+                              className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Tozalash
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Search */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Qidirish</Label>
+                            <div className="relative">
+                              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Ism, telefon yoki passport..."
+                                value={filters.searchTerm}
+                                onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                                className="rounded-2xl pl-9"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Status Filter */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Status</Label>
+                            <Select 
+                              value={filters.status} 
+                              onValueChange={(value) => setFilters({ ...filters, status: value })}
+                            >
+                              <SelectTrigger className="rounded-2xl">
+                                <SelectValue placeholder="Statusni tanlang" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Barchasi</SelectItem>
+                                <SelectItem value="active">Faol</SelectItem>
+                                <SelectItem value="inactive">Nofaol</SelectItem>
+                                <SelectItem value="graduated">Bitirgan</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Group Filter */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Guruh</Label>
+                            <Select 
+                              value={filters.groupId} 
+                              onValueChange={(value) => setFilters({ ...filters, groupId: value })}
+                            >
+                              <SelectTrigger className="rounded-2xl">
+                                <SelectValue placeholder="Guruhni tanlang" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">Barcha guruhlar</SelectItem>
+                                {availableGroups.map((group) => (
+                                  <SelectItem key={group.id} value={group.id}>
+                                    {group.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Filter Results Info */}
+                        {hasActiveFilters && (
+                          <div className="mt-4 p-3 rounded-2xl bg-background border">
+                            <p className="text-sm text-muted-foreground">
+                              <strong className="text-foreground">{filteredStudents.length} ta natija</strong> topildi 
+                              {filters.status !== "all" && ` • Status: ${filters.status}`}
+                              {filters.groupId !== "all" && ` • Guruh tanlangan`}
+                              {filters.searchTerm && ` • Qidiruv: "${filters.searchTerm}"`}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Student Stats Quick View */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Jami O'quvchilar", value: "247", icon: <Users className="h-4 w-4" />, color: "text-blue-600", bgColor: "bg-blue-50" },
-                  { label: "Faol", value: "198", icon: <CheckCircle className="h-4 w-4" />, color: "text-green-600", bgColor: "bg-green-50" },
-                  { label: "To'lovda qarzdor", value: "49", icon: <AlertCircle className="h-4 w-4" />, color: "text-orange-600", bgColor: "bg-orange-50" },
-                  { label: "Tugatganlar", value: "89", icon: <Award className="h-4 w-4" />, color: "text-purple-600", bgColor: "bg-purple-50" },
+                  { 
+                    label: hasActiveFilters ? "Ko'rsatilmoqda" : "Jami O'quvchilar", 
+                    value: filteredStudents.length.toString(), 
+                    icon: <Users className="h-4 w-4" />, 
+                    color: "text-blue-600", 
+                    bgColor: "bg-blue-50" 
+                  },
+                  { 
+                    label: "Faol", 
+                    value: filteredStudents.filter(s => s.status === 'active').length.toString(), 
+                    icon: <CheckCircle className="h-4 w-4" />, 
+                    color: "text-green-600", 
+                    bgColor: "bg-green-50" 
+                  },
+                  { 
+                    label: "Nofaol", 
+                    value: filteredStudents.filter(s => s.status === 'inactive').length.toString(), 
+                    icon: <AlertCircle className="h-4 w-4" />, 
+                    color: "text-orange-600", 
+                    bgColor: "bg-orange-50" 
+                  },
+                  { 
+                    label: "Bitirganlar", 
+                    value: filteredStudents.filter(s => s.status === 'graduated').length.toString(), 
+                    icon: <Award className="h-4 w-4" />, 
+                    color: "text-purple-600", 
+                    bgColor: "bg-purple-50" 
+                  },
                 ].map((stat, index) => (
                   <Card key={index} className="rounded-3xl border-2">
                     <CardContent className="p-4">
@@ -1299,79 +2162,171 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 ))}
               </div>
 
-              {/* Students Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {students.map((student, index) => (
-                  <motion.div
-                    key={student.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 border-2 border-primary/20">
-                            <AvatarImage src={student.avatar} alt={student.name} />
-                            <AvatarFallback>{formatInitials(student.name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-base leading-tight truncate">{student.name}</CardTitle>
-                            {getStatusBadge(student.status)}
-                          </div>
-                        </div>
-                      </CardHeader>
+              {/* Loading State */}
+              {isLoadingStudents && (
+                <div className="text-center py-12">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                  <p className="text-muted-foreground">O'quvchilar yuklanmoqda...</p>
+                </div>
+              )}
 
-                      <CardContent className="space-y-3">
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">Kurs</p>
-                          <p className="font-medium text-sm">{student.course}</p>
-                        </div>
+              {/* Error State */}
+              {studentsError && (
+                <Card className="rounded-3xl border-2 border-red-200 bg-red-50">
+                  <CardContent className="p-6 text-center">
+                    <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-3" />
+                    <h3 className="font-semibold text-red-900 mb-2">Xatolik yuz berdi</h3>
+                    <p className="text-red-700 mb-4">{studentsError}</p>
+                    <Button onClick={fetchStudents} className="rounded-2xl">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Qayta urinish
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Rivojlanish</span>
-                            <span className="font-medium">{student.progress}%</span>
-                          </div>
-                          <Progress value={student.progress} className="h-2" />
-                        </div>
+              {/* Empty State */}
+              {!isLoadingStudents && !studentsError && studentsData.length === 0 && (
+                <Card className="rounded-3xl border-2">
+                  <CardContent className="p-12 text-center">
+                    <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <h3 className="font-semibold text-xl mb-2">Hali o'quvchilar yo'q</h3>
+                    <p className="text-muted-foreground mb-6">Birinchi o'quvchini qo'shish uchun yuqoridagi tugmani bosing</p>
+                    <Button onClick={() => setIsAddStudentDialogOpen(true)} className="rounded-2xl">
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Birinchi O'quvchini Qo'shish
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Davomad</p>
-                            <p className="font-semibold">{student.attendance}%</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Sertifikatlar</p>
-                            <p className="font-semibold">{student.certificates}</p>
-                          </div>
-                        </div>
+              {/* Students Grid - Real Data */}
+              {!isLoadingStudents && !studentsError && studentsData.length > 0 && (
+                <>
+                  {/* Filter Active Badge */}
+                  {hasActiveFilters && (
+                    <div className="flex items-center gap-2 p-4 rounded-2xl bg-primary/10 border-2 border-primary/20">
+                      <Filter className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">
+                        {filteredStudents.length} ta o'quvchi topildi
+                      </span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={resetFilters}
+                        className="ml-auto rounded-xl"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Filtrni Bekor Qilish
+                      </Button>
+                    </div>
+                  )}
 
-                        <div className="space-y-1">
-                          <p className="text-sm text-muted-foreground">Oxirgi faollik</p>
-                          <p className="font-medium text-xs">{student.lastActivity}</p>
-                        </div>
+                  {filteredStudents.length === 0 ? (
+                    <Card className="rounded-3xl border-2">
+                      <CardContent className="p-12 text-center">
+                        <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                        <h3 className="font-semibold text-xl mb-2">Hech narsa topilmadi</h3>
+                        <p className="text-muted-foreground mb-6">Filtr shartlariga mos o'quvchi yo'q</p>
+                        <Button onClick={resetFilters} variant="outline" className="rounded-2xl">
+                          <X className="mr-2 h-4 w-4" />
+                          Filtrni Tozalash
+                        </Button>
                       </CardContent>
-
-                      <CardFooter className="flex gap-2 pt-3">
-                        <Button variant="secondary" className="flex-1 rounded-2xl text-xs">
-                          <Eye className="mr-1 h-3 w-3" />
-                          Profil
-                        </Button>
-                        <Button variant="outline" size="icon" className="rounded-2xl" title="SMS yuborish">
-                          <SendHorizontal className="h-3 w-3" />
-                        </Button>
-                        <Button variant="outline" size="icon" className="rounded-2xl" title="Tahrirlash">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="outline" size="icon" className="rounded-2xl text-red-600 hover:bg-red-50" title="O'chirish">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </CardFooter>
                     </Card>
-                  </motion.div>
-                ))}
-              </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {filteredStudents.map((student, index) => (
+                    <motion.div
+                      key={student.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                    >
+                      <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12 border-2 border-primary/20">
+                              <AvatarFallback>{formatInitials(student.full_name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base leading-tight truncate">{student.full_name}</CardTitle>
+                              {getStatusBadge(student.status)}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="space-y-3">
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground">Telefon</p>
+                            <p className="font-medium text-sm">{student.phone_number}</p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground">Guruh</p>
+                            <p className="font-medium text-sm">
+                              {student.groups?.name || 'Guruh tayinlanmagan'}
+                            </p>
+                          </div>
+
+                          {student.passport_number && (
+                            <div className="space-y-1">
+                              <p className="text-sm text-muted-foreground">Passport</p>
+                              <p className="font-medium text-sm">{student.passport_number}</p>
+                            </div>
+                          )}
+
+                          <div className="space-y-1">
+                            <p className="text-sm text-muted-foreground">Qo'shilgan sana</p>
+                            <p className="font-medium text-xs">
+                              {new Date(student.enrollment_date).toLocaleDateString('uz-UZ', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </CardContent>
+
+                        <CardFooter className="flex gap-2 pt-3">
+                          <Button variant="secondary" className="flex-1 rounded-2xl text-xs">
+                            <Eye className="mr-1 h-3 w-3" />
+                            Profil
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="rounded-2xl" 
+                            title="SMS yuborish"
+                          >
+                            <SendHorizontal className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="rounded-2xl" 
+                            title="Tahrirlash"
+                            onClick={() => openEditStudentDialog(student)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="rounded-2xl text-red-600 hover:bg-red-50" 
+                            title="O'chirish"
+                            onClick={() => handleDeleteStudent(student)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -2000,15 +2955,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 <Label className="text-sm font-medium">Qo'shilish Sanasi va Vaqti</Label>
               </div>
               <p className="text-sm text-muted-foreground">
-                {new Date().toLocaleString('uz-UZ', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit'
-                })}
+                {isClient && currentTime ? (
+                  currentTime.toLocaleString('uz-UZ', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })
+                ) : (
+                  'Yuklanmoqda...'
+                )}
               </p>
             </div>
           </div>
@@ -2028,6 +2987,332 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             >
               <UserPlus className="mr-2 h-4 w-4" />
               O'quvchi Qo'shish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Group Dialog */}
+      <Dialog open={isEditGroupDialogOpen} onOpenChange={setIsEditGroupDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Guruhni Tahrirlash
+            </DialogTitle>
+            <DialogDescription>
+              Guruh ma'lumotlarini yangilang. Barcha o'zgarishlar avtomatik saqlanadi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-4 max-h-[500px] overflow-y-auto">
+            {/* Group Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="editGroupName" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Guruh Nomi <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="editGroupName"
+                placeholder="Masalan: Frontend Development - Ertalabki"
+                value={editGroupData.name}
+                onChange={(e) => setEditGroupData({ ...editGroupData, name: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Course Type */}
+            <div className="grid gap-2">
+              <Label htmlFor="editCourseType" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-primary" />
+                Kurs Turi <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="editCourseType"
+                placeholder="Masalan: Frontend Development"
+                value={editGroupData.course_type}
+                onChange={(e) => setEditGroupData({ ...editGroupData, course_type: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Schedule */}
+            <div className="grid gap-2">
+              <Label htmlFor="editSchedule" className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-primary" />
+                Dars Jadvali
+              </Label>
+              <Input
+                id="editSchedule"
+                placeholder="Masalan: Dush-Chor-Juma 09:00-12:00"
+                value={editGroupData.schedule}
+                onChange={(e) => setEditGroupData({ ...editGroupData, schedule: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Teacher Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="editTeacherName" className="flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                O'qituvchi
+              </Label>
+              <Input
+                id="editTeacherName"
+                placeholder="Masalan: Rustam Toshmatov"
+                value={editGroupData.teacher_name}
+                onChange={(e) => setEditGroupData({ ...editGroupData, teacher_name: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="editStartDate" className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-primary" />
+                  Boshlanish Sanasi
+                </Label>
+                <Input
+                  id="editStartDate"
+                  type="date"
+                  value={editGroupData.start_date}
+                  onChange={(e) => setEditGroupData({ ...editGroupData, start_date: e.target.value })}
+                  className="rounded-2xl"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="editEndDate" className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-primary" />
+                  Tugash Sanasi
+                </Label>
+                <Input
+                  id="editEndDate"
+                  type="date"
+                  value={editGroupData.end_date}
+                  onChange={(e) => setEditGroupData({ ...editGroupData, end_date: e.target.value })}
+                  className="rounded-2xl"
+                />
+              </div>
+            </div>
+
+            {/* Max Students */}
+            <div className="grid gap-2">
+              <Label htmlFor="editMaxStudents" className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Maksimal O'quvchilar Soni
+              </Label>
+              <Input
+                id="editMaxStudents"
+                type="number"
+                min="1"
+                max="100"
+                value={editGroupData.max_students}
+                onChange={(e) => setEditGroupData({ ...editGroupData, max_students: parseInt(e.target.value) || 30 })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Status */}
+            <div className="grid gap-2">
+              <Label htmlFor="editStatus" className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Status
+              </Label>
+              <Select 
+                value={editGroupData.status} 
+                onValueChange={(value) => setEditGroupData({ ...editGroupData, status: value })}
+              >
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue placeholder="Statusni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Faol</SelectItem>
+                  <SelectItem value="inactive">Nofaol</SelectItem>
+                  <SelectItem value="completed">Tugallangan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Current Group Info */}
+            {editingGroup && (
+              <div className="p-4 rounded-2xl bg-muted/50 border">
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-medium">Joriy Ma'lumotlar</Label>
+                </div>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p><strong>O'quvchilar:</strong> {editingGroup.current_students || 0} / {editingGroup.max_students || 30}</p>
+                  <p><strong>Yaratilgan:</strong> {new Date(editingGroup.created_at).toLocaleString('uz-UZ')}</p>
+                  {editingGroup.updated_at && (
+                    <p><strong>Oxirgi yangilanish:</strong> {new Date(editingGroup.updated_at).toLocaleString('uz-UZ')}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditGroupDialogOpen(false)}
+              className="rounded-2xl"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Bekor Qilish
+            </Button>
+            <Button
+              onClick={handleEditGroup}
+              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Saqlash
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={isEditStudentDialogOpen} onOpenChange={setIsEditStudentDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              O'quvchini Tahrirlash
+            </DialogTitle>
+            <DialogDescription>
+              O'quvchi ma'lumotlarini yangilang. Guruhni o'zgartirsangiz, guruhlar soni avtomatik yangilanadi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-6 py-4">
+            {/* Full Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="editStudentFullName" className="flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Ism Sharifi <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="editStudentFullName"
+                placeholder="Masalan: Abdullayev Jasur Akmalovich"
+                value={editStudentData.fullName}
+                onChange={(e) => setEditStudentData({ ...editStudentData, fullName: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Phone Number */}
+            <div className="grid gap-2">
+              <Label htmlFor="editStudentPhone" className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-primary" />
+                Telefon Raqam <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="editStudentPhone"
+                placeholder="+998 90 123 45 67"
+                value={editStudentData.phoneNumber}
+                onChange={(e) => setEditStudentData({ ...editStudentData, phoneNumber: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Passport Number */}
+            <div className="grid gap-2">
+              <Label htmlFor="editStudentPassport" className="flex items-center gap-2">
+                <BadgeCheck className="h-4 w-4 text-primary" />
+                Passport Raqami <span className="text-muted-foreground text-xs">(ixtiyoriy)</span>
+              </Label>
+              <Input
+                id="editStudentPassport"
+                placeholder="AA 1234567"
+                value={editStudentData.passportNumber}
+                onChange={(e) => setEditStudentData({ ...editStudentData, passportNumber: e.target.value })}
+                className="rounded-2xl"
+              />
+            </div>
+
+            {/* Group Selection */}
+            <div className="grid gap-2">
+              <Label htmlFor="editStudentGroup" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Guruh/Kurs <span className="text-red-500">*</span>
+              </Label>
+              <Select 
+                value={editStudentData.group} 
+                onValueChange={(value) => setEditStudentData({ ...editStudentData, group: value })}
+              >
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue placeholder="Guruhni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableGroups.length > 0 ? (
+                    availableGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name} - {group.schedule}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled>
+                      Guruhlar yuklanmoqda...
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status */}
+            <div className="grid gap-2">
+              <Label htmlFor="editStudentStatus" className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Status
+              </Label>
+              <Select 
+                value={editStudentData.status} 
+                onValueChange={(value) => setEditStudentData({ ...editStudentData, status: value })}
+              >
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue placeholder="Statusni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Faol</SelectItem>
+                  <SelectItem value="inactive">Nofaol</SelectItem>
+                  <SelectItem value="graduated">Bitirgan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Current Student Info */}
+            {editingStudent && (
+              <div className="p-4 rounded-2xl bg-muted/50 border">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-medium">Joriy Ma'lumotlar</Label>
+                </div>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p><strong>Joriy guruh:</strong> {editingStudent.groups?.name || "Guruh tayinlanmagan"}</p>
+                  <p><strong>Qo'shilgan sana:</strong> {new Date(editingStudent.enrollment_date).toLocaleDateString('uz-UZ')}</p>
+                  {editingStudent.updated_at && (
+                    <p><strong>Oxirgi yangilanish:</strong> {new Date(editingStudent.updated_at).toLocaleString('uz-UZ')}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditStudentDialogOpen(false)}
+              className="rounded-2xl"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Bekor Qilish
+            </Button>
+            <Button
+              onClick={handleEditStudent}
+              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Saqlash
             </Button>
           </DialogFooter>
         </DialogContent>

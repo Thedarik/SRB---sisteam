@@ -166,3 +166,5 @@ INSERT INTO groups (name, course_type, schedule, start_date, end_date, teacher_n
 -- DONE! ✅
 -- ============================================
 
+
+
