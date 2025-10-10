@@ -504,7 +504,7 @@ const reportCards: ReportCard[] = [
   { title: "Umumiy Statistika", desc: "Barcha metrikalar va trendlar", icon: <PieChart className="h-6 w-6" />, color: "bg-pink-500" },
 ]
 
-type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings"
+type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance"
 
 // ✅ ASOSIY O'ZGARISH: Bu yerda export qilish kerak
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
@@ -578,10 +578,66 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     searchTerm: ""
   })
 
+  // Theme Colors State (localStorage)
+  const [themeColors, setThemeColors] = useState({
+    primary: "#2563EB",    // blue-600
+    secondary: "#9333EA",  // purple-600
+    accent: "#16A34A"      // green-600
+  })
+
+  // User Saved Presets (localStorage - shaxsiy)
+  const [savedPresets, setSavedPresets] = useState<Array<{
+    name: string
+    colors: typeof themeColors
+  }>>([])
+  const [presetName, setPresetName] = useState("")
+
+  // New Theme Creation (for Database)
+  const [isCreatingTheme, setIsCreatingTheme] = useState(false)
+  const [newTheme, setNewTheme] = useState({
+    name: "",
+    description: "",
+    colors: { primary: "#2563EB", secondary: "#9333EA", accent: "#16A34A" }
+  })
+
+  // Database Themes (Supabase - umumiy)
+  const [databaseThemes, setDatabaseThemes] = useState<Array<{
+    id: string
+    name: string
+    description?: string
+    colors: typeof themeColors
+    is_default: boolean
+  }>>([])
+  const [isLoadingThemes, setIsLoadingThemes] = useState(false)
+
   // Client-side initialization
   useEffect(() => {
     setIsClient(true)
     setCurrentTime(new Date())
+    
+    // Load theme colors from localStorage
+    const savedColors = localStorage.getItem('educrm-theme-colors')
+    if (savedColors) {
+      try {
+        const parsed = JSON.parse(savedColors)
+        setThemeColors(parsed)
+        console.log('✅ Saqlangan ranglar yuklandi:', parsed)
+      } catch (error) {
+        console.error('❌ Ranglarni yuklashda xatolik:', error)
+      }
+    }
+
+    // Load user presets from localStorage
+    const savedPresetsData = localStorage.getItem('educrm-user-presets')
+    if (savedPresetsData) {
+      try {
+        const parsed = JSON.parse(savedPresetsData)
+        setSavedPresets(parsed)
+        console.log('✅ User preset\'lar yuklandi:', parsed.length)
+      } catch (error) {
+        console.error('❌ Preset\'larni yuklashda xatolik:', error)
+      }
+    }
   }, [])
 
   // Real-time clock (only on client)
@@ -619,6 +675,39 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // Load groups on component mount
   useEffect(() => {
     fetchGroupsForCourses()
+  }, [])
+
+  // Fetch themes from database
+  const fetchDatabaseThemes = async () => {
+    setIsLoadingThemes(true)
+    try {
+      const response = await fetch('/api/themes')
+      const result = await response.json()
+      
+      if (result.success) {
+        // Parse colors from TEXT to object
+        const parsedThemes = result.data.map((theme: any) => ({
+          ...theme,
+          colors: typeof theme.colors === 'string' 
+            ? JSON.parse(theme.colors) 
+            : theme.colors,
+          is_default: false // Default value
+        }))
+        setDatabaseThemes(parsedThemes || [])
+        console.log('✅ Database theme\'lar yuklandi:', parsedThemes.length)
+      } else {
+        console.error('❌ Theme yuklashda xatolik:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Network xatosi:', error)
+    } finally {
+      setIsLoadingThemes(false)
+    }
+  }
+
+  // Load database themes on component mount
+  useEffect(() => {
+    fetchDatabaseThemes()
   }, [])
 
   // Fetch students - Real backend data
@@ -1165,6 +1254,100 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // Check if filters are active
   const hasActiveFilters = filters.status !== "all" || filters.groupId !== "all" || filters.searchTerm.trim() !== ""
 
+  // Save theme colors to localStorage
+  const saveThemeColors = (colors: typeof themeColors) => {
+    setThemeColors(colors)
+    localStorage.setItem('educrm-theme-colors', JSON.stringify(colors))
+    console.log('✅ Ranglar saqlandi:', colors)
+    alert('✅ Ranglar muvaffaqiyatli saqlandi!')
+  }
+
+  // Reset theme colors to default
+  const resetThemeColors = () => {
+    const defaultColors = {
+      primary: "#2563EB",
+      secondary: "#9333EA",
+      accent: "#16A34A"
+    }
+    saveThemeColors(defaultColors)
+  }
+
+  // Save current colors as a preset
+  const saveAsPreset = () => {
+    if (!presetName.trim()) {
+      alert("❌ Preset nomini kiriting!")
+      return
+    }
+
+    const newPreset = {
+      name: presetName.trim(),
+      colors: { ...themeColors }
+    }
+
+    const updatedPresets = [...savedPresets, newPreset]
+    setSavedPresets(updatedPresets)
+    localStorage.setItem('educrm-user-presets', JSON.stringify(updatedPresets))
+    
+    setPresetName("")
+    alert(`✅ "${newPreset.name}" preset saqlandi!`)
+  }
+
+  // Delete a preset
+  const deletePreset = (index: number) => {
+    const presetName = savedPresets[index].name
+    const confirmed = confirm(`❓ "${presetName}" preset'ni o'chirmoqchimisiz?`)
+    
+    if (!confirmed) return
+
+    const updatedPresets = savedPresets.filter((_, i) => i !== index)
+    setSavedPresets(updatedPresets)
+    localStorage.setItem('educrm-user-presets', JSON.stringify(updatedPresets))
+    
+    alert(`✅ "${presetName}" o'chirildi!`)
+  }
+
+  // Create New Theme and Save to Database
+  const handleCreateTheme = async () => {
+    if (!newTheme.name.trim()) {
+      alert("❌ Theme nomini kiriting!")
+      return
+    }
+
+    try {
+      const response = await fetch('/api/themes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTheme.name.trim(),
+          colors: newTheme.colors
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Theme yaratishda xatolik')
+      }
+
+      const createdTheme = await response.json()
+      
+      // Refresh database themes
+      await fetchDatabaseThemes()
+      
+      // Reset form
+      setNewTheme({
+        name: "",
+        description: "",
+        colors: { primary: "#2563EB", secondary: "#9333EA", accent: "#16A34A" }
+      })
+      setIsCreatingTheme(false)
+      
+      alert("✅ Yangi theme database'ga saqlandi!")
+    } catch (error) {
+      console.error("❌ Theme yaratishda xatolik:", error)
+      alert("❌ Theme yaratishda xatolik yuz berdi!")
+    }
+  }
+
   // Dynamic analytics data (only calculated on client after data loads)
   const adminAnalytics: AnalyticsData[] = isClient ? [
     {
@@ -1282,7 +1465,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           {/* Header */}
           <div className="p-6 border-b">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-green-600 text-white shadow-lg">
+              <div 
+                className="flex aspect-square size-12 items-center justify-center rounded-2xl text-white shadow-lg"
+                style={{
+                  background: `linear-gradient(to bottom right, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`
+                }}
+              >
                 <GraduationCap className="size-6" />
               </div>
             <div>
@@ -1373,7 +1561,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
           <div className="flex flex-1 items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 
+                className="text-xl font-bold bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                }}
+              >
                 IT Academy Tashkent - CRM Dashboard
               </h1>
               <p className="text-sm text-muted-foreground">O'quvchilar, moliya va o'quv jarayonini boshqaring</p>
@@ -1427,7 +1620,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 p-8 text-white relative"
+                className="mb-8 overflow-hidden rounded-3xl p-8 text-white relative"
+                style={{
+                  background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`
+                }}
               >
                 <div className="relative z-10">
                   <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -1734,7 +1930,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   >
                     <Card className="rounded-3xl border-2 border-primary/30 bg-gradient-to-br from-blue-50 to-purple-50">
                       <CardHeader>
-                        <CardTitle className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <CardTitle 
+                          className="text-2xl bg-clip-text text-transparent"
+                          style={{
+                            backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                          }}
+                        >
                           ➕ Yangi Guruh Yaratish
                         </CardTitle>
                         <CardDescription>
@@ -1874,7 +2075,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           </Button>
                           <Button
                             onClick={handleAddGroup}
-                            className="flex-1 rounded-2xl h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                            className="flex-1 rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
+                            style={{
+                              background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                            }}
                           >
                             <Save className="mr-2 h-4 w-4" />
                             Guruh Yaratish
@@ -2833,15 +3037,479 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
           )}
 
+          {activeTab === "appearance" && (
+            <div className="space-y-6">
+              {/* Header with Back Button */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">🎨 Ko'rinish Sozlamalari</h2>
+                  <p className="text-muted-foreground">Dashboard ranglar va gradient'larini sozlang</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setActiveTab("settings")}
+                  className="rounded-2xl"
+                >
+                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Orqaga
+                </Button>
+              </div>
+
+              {/* Main Grid Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Side - Color Editor & Preview */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Live Preview */}
+                  <Card className="rounded-3xl border-2 overflow-hidden">
+                    <div 
+                      className="p-8 text-white relative"
+                      style={{
+                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`
+                      }}
+                    >
+                      <div className="relative z-10 text-center space-y-3">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          <span className="text-sm font-medium">Live Preview</span>
+                        </div>
+                        <h3 className="text-3xl font-bold">Gradient Ko'rinish</h3>
+                        <div className="flex items-center justify-center gap-3 pt-2">
+                          <div className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
+                            <p className="text-xs text-white/70">Start</p>
+                            <p className="font-mono text-xs">{themeColors.primary}</p>
+                          </div>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                          <div className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
+                            <p className="text-xs text-white/70">Middle</p>
+                            <p className="font-mono text-xs">{themeColors.secondary}</p>
+                          </div>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          </svg>
+                          <div className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
+                            <p className="text-xs text-white/70">End</p>
+                            <p className="font-mono text-xs">{themeColors.accent}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Color Pickers */}
+              <Card className="rounded-3xl border-2">
+                <CardHeader>
+                  <CardTitle className="text-2xl">Ranglarni Tanlash</CardTitle>
+                  <CardDescription>Har bir rang uchun aniq kod yoki color picker ishlatishingiz mumkin</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* Primary Color */}
+                    <div className="space-y-4 p-6 rounded-2xl border-2 bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full ring-4 ring-offset-2" style={{ backgroundColor: themeColors.primary }}></div>
+                        <div>
+                          <Label className="font-semibold text-base">Asosiy Rang</Label>
+                          <p className="text-xs text-muted-foreground">Gradient boshlanishi (chap)</p>
+                        </div>
+                      </div>
+                      <Input
+                        type="color"
+                        value={themeColors.primary}
+                        onChange={(e) => setThemeColors({ ...themeColors, primary: e.target.value })}
+                        className="h-20 rounded-2xl cursor-pointer w-full"
+                      />
+                      <Input
+                        type="text"
+                        value={themeColors.primary}
+                        onChange={(e) => setThemeColors({ ...themeColors, primary: e.target.value })}
+                        className="rounded-xl text-center font-mono text-lg"
+                        placeholder="#2563EB"
+                      />
+                    </div>
+
+                    {/* Secondary Color */}
+                    <div className="space-y-4 p-6 rounded-2xl border-2 bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full ring-4 ring-offset-2" style={{ backgroundColor: themeColors.secondary }}></div>
+                        <div>
+                          <Label className="font-semibold text-base">O'rta Rang</Label>
+                          <p className="text-xs text-muted-foreground">Gradient markazi</p>
+                        </div>
+                      </div>
+                      <Input
+                        type="color"
+                        value={themeColors.secondary}
+                        onChange={(e) => setThemeColors({ ...themeColors, secondary: e.target.value })}
+                        className="h-20 rounded-2xl cursor-pointer w-full"
+                      />
+                      <Input
+                        type="text"
+                        value={themeColors.secondary}
+                        onChange={(e) => setThemeColors({ ...themeColors, secondary: e.target.value })}
+                        className="rounded-xl text-center font-mono text-lg"
+                        placeholder="#9333EA"
+                      />
+                    </div>
+
+                    {/* Accent Color */}
+                    <div className="space-y-4 p-6 rounded-2xl border-2 bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full ring-4 ring-offset-2" style={{ backgroundColor: themeColors.accent }}></div>
+                        <div>
+                          <Label className="font-semibold text-base">Tugash Rangi</Label>
+                          <p className="text-xs text-muted-foreground">Gradient tugashi (o'ng)</p>
+                        </div>
+                      </div>
+                      <Input
+                        type="color"
+                        value={themeColors.accent}
+                        onChange={(e) => setThemeColors({ ...themeColors, accent: e.target.value })}
+                        className="h-20 rounded-2xl cursor-pointer w-full"
+                      />
+                      <Input
+                        type="text"
+                        value={themeColors.accent}
+                        onChange={(e) => setThemeColors({ ...themeColors, accent: e.target.value })}
+                        className="rounded-xl text-center font-mono text-lg"
+                        placeholder="#16A34A"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Save Buttons */}
+                  <div className="flex gap-3 pt-6 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={resetThemeColors}
+                      className="flex-1 rounded-2xl h-12"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Standart Ranglar
+                    </Button>
+                    <Button
+                      onClick={() => saveThemeColors(themeColors)}
+                      className="flex-1 rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
+                      style={{
+                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                      }}
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      Qo'llash va Saqlash
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+                </div>
+
+                {/* Right Side - Database Themes & Create */}
+                <div className="space-y-6">
+                  {/* Create New Theme */}
+                  {!isCreatingTheme ? (
+                    <Button 
+                      onClick={() => setIsCreatingTheme(true)}
+                      className="w-full rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
+                      style={{
+                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                      }}
+                    >
+                      <Plus className="mr-2 h-5 w-5" />
+                      Yangi Rang Yaratish
+                    </Button>
+                  ) : (
+                    <Card className="rounded-3xl border-2">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Yangi Rang Yaratish</CardTitle>
+                        <CardDescription>Database'ga yangi theme qo'shing</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Nom</Label>
+                          <Input
+                            placeholder="Theme nomi..."
+                            value={newTheme.name}
+                            onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
+                            className="rounded-2xl"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Ranglar</Label>
+                          <div className="space-y-2">
+                            <Input
+                              type="color"
+                              value={newTheme.colors.primary}
+                              onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, primary: e.target.value } })}
+                              className="h-10 rounded-xl cursor-pointer"
+                            />
+                            <Input
+                              type="color"
+                              value={newTheme.colors.secondary}
+                              onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, secondary: e.target.value } })}
+                              className="h-10 rounded-xl cursor-pointer"
+                            />
+                            <Input
+                              type="color"
+                              value={newTheme.colors.accent}
+                              onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, accent: e.target.value } })}
+                              className="h-10 rounded-xl cursor-pointer"
+                            />
+                          </div>
+                        </div>
+
+                        <div 
+                          className="h-12 rounded-xl"
+                          style={{
+                            background: `linear-gradient(to right, ${newTheme.colors.primary}, ${newTheme.colors.secondary}, ${newTheme.colors.accent})`
+                          }}
+                        />
+
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsCreatingTheme(false)}
+                            className="flex-1 rounded-2xl"
+                          >
+                            Bekor Qilish
+                          </Button>
+                          <Button
+                            onClick={handleCreateTheme}
+                            className="flex-1 rounded-2xl"
+                          >
+                            Saqlash
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Database Themes List */}
+                  <Card className="rounded-3xl border-2">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">Tayyor Ranglar</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchDatabaseThemes}
+                          disabled={isLoadingThemes}
+                          className="rounded-xl"
+                        >
+                          <RefreshCw className={cn("h-4 w-4", isLoadingThemes && "animate-spin")} />
+                        </Button>
+                      </div>
+                      <CardDescription>Database'dan yuklangan {databaseThemes.length} ta theme</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {isLoadingThemes ? (
+                        <div className="text-center py-8">
+                          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                          <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
+                        </div>
+                      ) : databaseThemes.length > 0 ? (
+                        <div className="space-y-2">
+                          {databaseThemes.map((theme) => (
+                            <button
+                              key={theme.id}
+                              onClick={() => setThemeColors(theme.colors)}
+                              className="w-full p-3 rounded-2xl border-2 hover:border-primary transition-all text-left"
+                            >
+                              <div 
+                                className="h-8 rounded-lg mb-2"
+                                style={{
+                                  background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`
+                                }}
+                              />
+                              <p className="text-sm font-medium truncate">{theme.name}</p>
+                              {theme.description && (
+                                <p className="text-xs text-muted-foreground truncate">{theme.description}</p>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 border-2 border-dashed rounded-2xl bg-muted/20">
+                          <p className="text-sm text-muted-foreground">Ranglar topilmadi</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Save as Preset Section (Below Grid) */}
+              <Card className="rounded-3xl border-2">
+                <CardHeader>
+                  <CardTitle className="text-2xl">💾 Preset Sifatida Saqlash</CardTitle>
+                  <CardDescription>Joriy ranglaringizni keyinchalik ishlatish uchun saqlang</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-3">
+                    <Input
+                      type="text"
+                      placeholder="Preset nomi, masalan: 'Yozgi Ranglar', 'Ocean Gradient'..."
+                      value={presetName}
+                      onChange={(e) => setPresetName(e.target.value)}
+                      className="rounded-2xl h-12 text-base"
+                    />
+                    <Button 
+                      onClick={saveAsPreset}
+                      className="rounded-2xl h-12 px-8 whitespace-nowrap" 
+                      disabled={!presetName.trim()}
+                    >
+                      <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      Saqlash
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* User Saved Presets */}
+              {savedPresets.length > 0 && (
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-2xl">⭐ Mening Ranglarim</CardTitle>
+                        <CardDescription>Siz saqlagan {savedPresets.length} ta shaxsiy preset</CardDescription>
+                      </div>
+                      <Badge variant="secondary" className="text-lg px-4 py-1">{savedPresets.length}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {savedPresets.map((preset, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="relative group"
+                        >
+                          <button
+                            onClick={() => setThemeColors(preset.colors)}
+                            className="w-full p-4 rounded-2xl border-2 hover:border-primary transition-all hover:shadow-lg"
+                            title={preset.name}
+                          >
+                            <div className="h-12 rounded-xl mb-3 ring-2 ring-offset-2 ring-transparent group-hover:ring-primary/50 transition-all" 
+                              style={{
+                                background: `linear-gradient(to right, ${preset.colors.primary}, ${preset.colors.secondary}, ${preset.colors.accent})`
+                              }}
+                            ></div>
+                            <p className="text-sm font-semibold truncate">{preset.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Shaxsiy preset</p>
+                          </button>
+                          <button
+                            onClick={() => deletePreset(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                            title="O'chirish"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Database Themes - Tayyor Ranglar */}
+              <Card className="rounded-3xl border-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-2xl">🎨 Tayyor Ranglar</CardTitle>
+                      <CardDescription>Professional dizaynerlarga mo'ljallangan ranglar to'plami</CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={fetchDatabaseThemes}
+                      disabled={isLoadingThemes}
+                      className="rounded-2xl"
+                    >
+                      <RefreshCw className={cn("h-4 w-4 mr-2", isLoadingThemes && "animate-spin")} />
+                      Yangilash
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingThemes ? (
+                    <div className="text-center py-12">
+                      <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-primary" />
+                      <p className="text-muted-foreground">Tayyor ranglar yuklanmoqda...</p>
+                    </div>
+                  ) : databaseThemes.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {databaseThemes.map((theme) => (
+                        <motion.button
+                          key={theme.id}
+                          onClick={() => setThemeColors(theme.colors)}
+                          className="p-4 rounded-2xl border-2 hover:border-primary transition-all relative group hover:shadow-lg"
+                          title={theme.description || theme.name}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className="h-12 rounded-xl mb-3 ring-2 ring-offset-2 ring-transparent group-hover:ring-primary/50 transition-all" 
+                            style={{
+                              background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`
+                            }}
+                          ></div>
+                          <p className="text-sm font-semibold truncate">{theme.name}</p>
+                          {theme.description && (
+                            <p className="text-xs text-muted-foreground truncate mt-1">{theme.description}</p>
+                          )}
+                          {theme.is_default && (
+                            <Badge className="absolute top-2 right-2 text-xs">Default</Badge>
+                          )}
+                        </motion.button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 border-2 border-dashed rounded-2xl bg-muted/20">
+                      <svg className="h-12 w-12 mx-auto mb-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                      <p className="text-muted-foreground mb-2">Tayyor ranglar topilmadi</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={fetchDatabaseThemes}
+                        className="mt-2 rounded-2xl"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Yuklash
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {activeTab === "settings" && (
             <div className="space-y-6">
               {/* Settings Header */}
-              <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold">Sozlamalar</h2>
-                <p className="text-muted-foreground">Profilingizni va tizim sozlamalarini boshqaring</p>
+              <div className="mb-6">
+                <h2 className="text-3xl font-bold mb-2">Sozlamalar</h2>
+                <p className="text-muted-foreground">Profil va tizim sozlamalarini boshqaring</p>
+              </div>
 
-                <Card className="max-w-md mx-auto rounded-3xl border-2">
-                  <CardContent className="p-8 text-center space-y-4">
+              <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Profile Card */}
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Profil Ma'lumotlari</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center space-y-4">
                     <Avatar className="mx-auto h-24 w-24 border-4 border-primary/20">
                       <AvatarImage src="/placeholder.svg?height=96&width=96" alt="Admin" />
                       <AvatarFallback className="text-xl">AU</AvatarFallback>
@@ -2851,7 +3519,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       <p className="text-sm text-muted-foreground">IT Academy Tashkent</p>
                       <p className="text-sm text-muted-foreground">admin@itacademy.uz</p>
                     </div>
-                    <div className="space-y-3 pt-4">
+                    <div className="space-y-2 pt-4">
                       <Button variant="outline" className="w-full rounded-2xl">
                         <Edit className="mr-2 h-4 w-4" />
                         Profilni Tahrirlash
@@ -2859,10 +3527,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       <Button variant="outline" className="w-full rounded-2xl">
                         <Shield className="mr-2 h-4 w-4" />
                         Xavfsizlik
-                      </Button>
-                      <Button variant="outline" className="w-full rounded-2xl">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Tizim Sozlamalari
                       </Button>
                       <Button
                         variant="outline"
@@ -2875,38 +3539,45 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
 
-              {/* Additional Settings Options */}
-              <Card className="max-w-md mx-auto rounded-3xl border-2">
-                <CardHeader>
-                  <CardTitle className="text-xl">Tizim Sozlamalari</CardTitle>
-                  <CardDescription>Umumiy platforma sozlamalarini boshqaring</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Bildirishnoma Sozlamalari</p>
-                    <Button variant="secondary" className="w-full rounded-2xl">
+                {/* System Settings */}
+                <Card className="rounded-3xl border-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Tizim Sozlamalari</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button 
+                      variant="default" 
+                      className="w-full rounded-2xl justify-start text-white hover:opacity-90 transition-opacity"
+                      onClick={() => setActiveTab("appearance")}
+                      style={{
+                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                      }}
+                    >
+                      <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                      Ko'rinish Sozlamalari
+                    </Button>
+                    <Button variant="secondary" className="w-full rounded-2xl justify-start">
                       <Bell className="mr-2 h-4 w-4" />
-                      Bildirishnomalarni Sozlash
+                      Bildirishnomalar
                     </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Ma'lumotlar Zahirasi</p>
-                    <Button variant="secondary" className="w-full rounded-2xl">
+                    <Button variant="secondary" className="w-full rounded-2xl justify-start">
                       <Cloud className="mr-2 h-4 w-4" />
-                      Zahira Nusxasini Yaratish
+                      Zahira Nusxasi
                     </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Tashkilot Ma'lumotlari</p>
-                    <Button variant="secondary" className="w-full rounded-2xl">
+                    <Button variant="secondary" className="w-full rounded-2xl justify-start">
                       <Building className="mr-2 h-4 w-4" />
-                      Tashkilotni Tahrirlash
+                      Tashkilot Ma'lumotlari
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                    <Button variant="secondary" className="w-full rounded-2xl justify-start">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Umumiy Sozlamalar
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
         </main>
@@ -2916,7 +3587,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       <Dialog open={isAddStudentDialogOpen} onOpenChange={setIsAddStudentDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <DialogTitle 
+              className="text-2xl font-bold bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
+            >
               Yangi O'quvchi Qo'shish
             </DialogTitle>
             <DialogDescription>
@@ -3031,7 +3707,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </Button>
             <Button
               onClick={handleAddStudent}
-              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="rounded-2xl text-white hover:opacity-90 transition-opacity"
+              style={{
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               O'quvchi Qo'shish
@@ -3044,7 +3723,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       <Dialog open={isEditGroupDialogOpen} onOpenChange={setIsEditGroupDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <DialogTitle 
+              className="text-2xl font-bold bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
+            >
               Guruhni Tahrirlash
             </DialogTitle>
             <DialogDescription>
@@ -3211,7 +3895,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </Button>
             <Button
               onClick={handleEditGroup}
-              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="rounded-2xl text-white hover:opacity-90 transition-opacity"
+              style={{
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
             >
               <Save className="mr-2 h-4 w-4" />
               Saqlash
@@ -3224,7 +3911,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       <Dialog open={isEditStudentDialogOpen} onOpenChange={setIsEditStudentDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <DialogTitle 
+              className="text-2xl font-bold bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
+            >
               O'quvchini Tahrirlash
             </DialogTitle>
             <DialogDescription>
@@ -3357,7 +4049,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </Button>
             <Button
               onClick={handleEditStudent}
-              className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="rounded-2xl text-white hover:opacity-90 transition-opacity"
+              style={{
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
             >
               <Save className="mr-2 h-4 w-4" />
               Saqlash

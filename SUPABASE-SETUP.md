@@ -157,3 +157,5 @@ Agar barcha qadamlar to'g'ri bajarilgan bo'lsa:
 
 
 
+
+
