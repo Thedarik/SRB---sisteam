@@ -610,6 +610,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   }>>([])
   const [isLoadingThemes, setIsLoadingThemes] = useState(false)
 
+  // Appearance Tab State (Yangi: Tab navigatsiya uchun)
+  const [appearanceTab, setAppearanceTab] = useState<"editor" | "presets" | "saved">("editor")
+
   // Client-side initialization
   useEffect(() => {
     setIsClient(true)
@@ -3038,12 +3041,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           )}
 
           {activeTab === "appearance" && (
-            <div className="space-y-6">
-              {/* Header with Back Button */}
+            <div className="space-y-8">
+              {/* 🎯 Header with Back Button */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-3xl font-bold mb-2">🎨 Ko'rinish Sozlamalari</h2>
-                  <p className="text-muted-foreground">Dashboard ranglar va gradient'larini sozlang</p>
+                  <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    🎨 Ko'rinish Sozlamalari
+                  </h2>
+                  <p className="text-muted-foreground">Professional ranglar va gradient'lar bilan dashboardingizni shaxsiylashtering</p>
                 </div>
                 <Button 
                   variant="outline" 
@@ -3057,60 +3062,102 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </Button>
               </div>
 
-              {/* Main Grid Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Side - Color Editor & Preview */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Live Preview */}
-                  <Card className="rounded-3xl border-2 overflow-hidden">
-                    <div 
-                      className="p-8 text-white relative"
-                      style={{
-                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`
-                      }}
-                    >
-                      <div className="relative z-10 text-center space-y-3">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm">
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          <span className="text-sm font-medium">Live Preview</span>
-                        </div>
-                        <h3 className="text-3xl font-bold">Gradient Ko'rinish</h3>
-                        <div className="flex items-center justify-center gap-3 pt-2">
-                          <div className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
-                            <p className="text-xs text-white/70">Start</p>
-                            <p className="font-mono text-xs">{themeColors.primary}</p>
-                          </div>
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                          </svg>
-                          <div className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
-                            <p className="text-xs text-white/70">Middle</p>
-                            <p className="font-mono text-xs">{themeColors.secondary}</p>
-                          </div>
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                          </svg>
-                          <div className="px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
-                            <p className="text-xs text-white/70">End</p>
-                            <p className="font-mono text-xs">{themeColors.accent}</p>
-                          </div>
-                        </div>
-                      </div>
+              {/* 🎨 HERO: Live Preview (Full Width) */}
+              <Card className="rounded-3xl border-2 overflow-hidden shadow-2xl">
+                <div 
+                  className="relative p-12 text-white transition-all duration-500"
+                  style={{
+                    background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 50%, ${themeColors.accent} 100%)`
+                  }}
+                >
+                  {/* Decorative elements */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
+                  <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
+                  
+                  <div className="relative z-10 text-center space-y-6">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30">
+                      <Eye className="h-4 w-4" />
+                      <span className="text-sm font-medium">Live Preview</span>
                     </div>
-                  </Card>
+                    
+                    <h3 className="text-4xl md:text-5xl font-bold drop-shadow-lg">
+                      Gradient Ko'rinish
+                    </h3>
+                    
+                    <p className="text-white/90 text-lg max-w-2xl mx-auto">
+                      Ranglaringiz real vaqt rejimida yangilanadi. Har bir o'zgarish darhol ko'rinadi.
+                    </p>
+                    
+                    {/* Color Codes Display */}
+                    <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+                      <motion.div 
+                        className="px-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20"
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <p className="text-xs text-white/70 mb-1">Primary</p>
+                        <p className="font-mono text-sm font-semibold">{themeColors.primary}</p>
+                      </motion.div>
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      <motion.div 
+                        className="px-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20"
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <p className="text-xs text-white/70 mb-1">Secondary</p>
+                        <p className="font-mono text-sm font-semibold">{themeColors.secondary}</p>
+                      </motion.div>
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      <motion.div 
+                        className="px-4 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20"
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <p className="text-xs text-white/70 mb-1">Accent</p>
+                        <p className="font-mono text-sm font-semibold">{themeColors.accent}</p>
+                      </motion.div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
 
-                  {/* Color Pickers */}
-              <Card className="rounded-3xl border-2">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Ranglarni Tanlash</CardTitle>
-                  <CardDescription>Har bir rang uchun aniq kod yoki color picker ishlatishingiz mumkin</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              {/* 📱 TAB NAVIGATION (New Professional Tabs) */}
+              <Tabs value={appearanceTab} onValueChange={(v) => setAppearanceTab(v as "editor" | "presets" | "saved")} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-14 rounded-2xl p-1 bg-muted">
+                  <TabsTrigger value="editor" className="rounded-xl text-base">
+                    <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                    Rang Tanlash
+                  </TabsTrigger>
+                  <TabsTrigger value="presets" className="rounded-xl text-base">
+                    <Star className="mr-2 h-5 w-5" />
+                    Tayyor Shablon
+                  </TabsTrigger>
+                  <TabsTrigger value="saved" className="rounded-xl text-base">
+                    <Bookmark className="mr-2 h-5 w-5" />
+                    Mening Ranglarim
+                  </TabsTrigger>
+                </TabsList>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* 🎨 TAB 1: RANG TANLASH (Color Editor) */}
+                <TabsContent value="editor" className="space-y-6 mt-6">
+                  <Card className="rounded-3xl border-2">
+                    <CardHeader>
+                      <CardTitle className="text-2xl flex items-center gap-2">
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                        Ranglarni Tanlash
+                      </CardTitle>
+                      <CardDescription>
+                        Har bir rang uchun aniq kod yoki color picker ishlatishingiz mumkin. O'zgarishlar darhol ko'rinadi.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                      {/* Color Pickers Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Primary Color */}
                     <div className="space-y-4 p-6 rounded-2xl border-2 bg-muted/30">
                       <div className="flex items-center gap-3">
@@ -3184,314 +3231,344 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </div>
                   </div>
 
-                  {/* Save Buttons */}
-                  <div className="flex gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={resetThemeColors}
-                      className="flex-1 rounded-2xl h-12"
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Standart Ranglar
-                    </Button>
-                    <Button
-                      onClick={() => saveThemeColors(themeColors)}
-                      className="flex-1 rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
-                      style={{
-                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
-                      }}
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      Qo'llash va Saqlash
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-                </div>
-
-                {/* Right Side - Database Themes & Create */}
-                <div className="space-y-6">
-                  {/* Create New Theme */}
-                  {!isCreatingTheme ? (
-                    <Button 
-                      onClick={() => setIsCreatingTheme(true)}
-                      className="w-full rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
-                      style={{
-                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
-                      }}
-                    >
-                      <Plus className="mr-2 h-5 w-5" />
-                      Yangi Rang Yaratish
-                    </Button>
-                  ) : (
-                    <Card className="rounded-3xl border-2">
-                      <CardHeader>
-                        <CardTitle className="text-lg">Yangi Rang Yaratish</CardTitle>
-                        <CardDescription>Database'ga yangi theme qo'shing</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label>Nom</Label>
-                          <Input
-                            placeholder="Theme nomi..."
-                            value={newTheme.name}
-                            onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
-                            className="rounded-2xl"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Ranglar</Label>
-                          <div className="space-y-2">
-                            <Input
-                              type="color"
-                              value={newTheme.colors.primary}
-                              onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, primary: e.target.value } })}
-                              className="h-10 rounded-xl cursor-pointer"
-                            />
-                            <Input
-                              type="color"
-                              value={newTheme.colors.secondary}
-                              onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, secondary: e.target.value } })}
-                              className="h-10 rounded-xl cursor-pointer"
-                            />
-                            <Input
-                              type="color"
-                              value={newTheme.colors.accent}
-                              onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, accent: e.target.value } })}
-                              className="h-10 rounded-xl cursor-pointer"
-                            />
-                          </div>
-                        </div>
-
-                        <div 
-                          className="h-12 rounded-xl"
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap gap-3 pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={resetThemeColors}
+                          className="flex-1 min-w-[200px] rounded-2xl h-12"
+                        >
+                          <RefreshCw className="mr-2 h-5 w-5" />
+                          Standart Ranglar
+                        </Button>
+                        <Button
+                          onClick={saveAsPreset}
+                          variant="outline"
+                          className="flex-1 min-w-[200px] rounded-2xl h-12"
+                          disabled={!presetName.trim()}
+                        >
+                          <Bookmark className="mr-2 h-5 w-5" />
+                          Preset Sifatida Saqlash
+                        </Button>
+                        <Button
+                          onClick={() => saveThemeColors(themeColors)}
+                          className="flex-1 min-w-[200px] rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
                           style={{
-                            background: `linear-gradient(to right, ${newTheme.colors.primary}, ${newTheme.colors.secondary}, ${newTheme.colors.accent})`
+                            background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`
                           }}
-                        />
+                        >
+                          <Save className="mr-2 h-5 w-5" />
+                          Qo'llash va Saqlash
+                        </Button>
+                      </div>
 
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => setIsCreatingTheme(false)}
-                            className="flex-1 rounded-2xl"
-                          >
-                            Bekor Qilish
-                          </Button>
-                          <Button
-                            onClick={handleCreateTheme}
-                            className="flex-1 rounded-2xl"
-                          >
-                            Saqlash
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                      {/* Preset Name Input (appears when save preset clicked) */}
+                      {presetName && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex gap-3"
+                        >
+                          <Input
+                            type="text"
+                            placeholder="Preset nomi, masalan: 'Yozgi Ranglar'..."
+                            value={presetName}
+                            onChange={(e) => setPresetName(e.target.value)}
+                            className="rounded-2xl h-12 text-base"
+                            autoFocus
+                          />
+                        </motion.div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                  {/* Database Themes List */}
+                {/* ⭐ TAB 2: TAYYOR SHABLON (Database Themes) */}
+                <TabsContent value="presets" className="space-y-6 mt-6">
                   <Card className="rounded-3xl border-2">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">Tayyor Ranglar</CardTitle>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <div>
+                          <CardTitle className="text-2xl flex items-center gap-2">
+                            <Star className="h-6 w-6 text-yellow-500" />
+                            Tayyor Ranglar
+                          </CardTitle>
+                          <CardDescription>
+                            Professional dizaynerlarga mo'ljallangan ranglar to'plami. Birini tanlang va darhol qo'llang.
+                          </CardDescription>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
                           onClick={fetchDatabaseThemes}
                           disabled={isLoadingThemes}
-                          className="rounded-xl"
+                          className="rounded-2xl"
                         >
-                          <RefreshCw className={cn("h-4 w-4", isLoadingThemes && "animate-spin")} />
+                          <RefreshCw className={cn("h-4 w-4 mr-2", isLoadingThemes && "animate-spin")} />
+                          Yangilash
                         </Button>
                       </div>
-                      <CardDescription>Database'dan yuklangan {databaseThemes.length} ta theme</CardDescription>
                     </CardHeader>
                     <CardContent>
                       {isLoadingThemes ? (
-                        <div className="text-center py-8">
-                          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-                          <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
+                        <div className="text-center py-16">
+                          <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+                          <p className="text-lg font-medium">Tayyor ranglar yuklanmoqda...</p>
+                          <p className="text-sm text-muted-foreground mt-2">Iltimos, kuting</p>
                         </div>
                       ) : databaseThemes.length > 0 ? (
-                        <div className="space-y-2">
-                          {databaseThemes.map((theme) => (
-                            <button
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {databaseThemes.map((theme, index) => (
+                            <motion.button
                               key={theme.id}
-                              onClick={() => setThemeColors(theme.colors)}
-                              className="w-full p-3 rounded-2xl border-2 hover:border-primary transition-all text-left"
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                              onClick={() => {
+                                setThemeColors(theme.colors)
+                                setAppearanceTab("editor")
+                              }}
+                              className="group p-5 rounded-2xl border-2 hover:border-primary transition-all relative hover:shadow-xl"
+                              title={theme.description || theme.name}
+                              whileHover={{ scale: 1.03, y: -4 }}
+                              whileTap={{ scale: 0.98 }}
                             >
+                              {/* Gradient Preview */}
                               <div 
-                                className="h-8 rounded-lg mb-2"
+                                className="h-16 rounded-xl mb-4 ring-2 ring-offset-2 ring-transparent group-hover:ring-primary/50 transition-all shadow-md" 
                                 style={{
-                                  background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`
+                                  background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`
                                 }}
-                              />
-                              <p className="text-sm font-medium truncate">{theme.name}</p>
-                              {theme.description && (
-                                <p className="text-xs text-muted-foreground truncate">{theme.description}</p>
+                              >
+                                <div className="h-full w-full rounded-xl bg-white/5 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <span className="text-white font-medium text-sm">Tanlash</span>
+                                </div>
+                              </div>
+
+                              {/* Theme Info */}
+                              <div className="text-left">
+                                <p className="text-sm font-semibold truncate mb-1">{theme.name}</p>
+                                {theme.description && (
+                                  <p className="text-xs text-muted-foreground truncate">{theme.description}</p>
+                                )}
+                              </div>
+
+                              {/* Default Badge */}
+                              {theme.is_default && (
+                                <Badge className="absolute top-3 right-3 text-xs">Default</Badge>
                               )}
-                            </button>
+                            </motion.button>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 border-2 border-dashed rounded-2xl bg-muted/20">
-                          <p className="text-sm text-muted-foreground">Ranglar topilmadi</p>
+                        <div className="text-center py-16 border-2 border-dashed rounded-2xl bg-muted/20">
+                          <svg className="h-16 w-16 mx-auto mb-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                          </svg>
+                          <p className="text-lg font-medium mb-2">Tayyor ranglar topilmadi</p>
+                          <p className="text-sm text-muted-foreground mb-4">Database'dan ranglarni yuklang</p>
+                          <Button 
+                            variant="outline" 
+                            size="lg" 
+                            onClick={fetchDatabaseThemes}
+                            className="rounded-2xl"
+                          >
+                            <RefreshCw className="mr-2 h-5 w-5" />
+                            Yuklash
+                          </Button>
                         </div>
                       )}
                     </CardContent>
                   </Card>
-                </div>
-              </div>
 
-              {/* Save as Preset Section (Below Grid) */}
-              <Card className="rounded-3xl border-2">
-                <CardHeader>
-                  <CardTitle className="text-2xl">💾 Preset Sifatida Saqlash</CardTitle>
-                  <CardDescription>Joriy ranglaringizni keyinchalik ishlatish uchun saqlang</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-3">
-                    <Input
-                      type="text"
-                      placeholder="Preset nomi, masalan: 'Yozgi Ranglar', 'Ocean Gradient'..."
-                      value={presetName}
-                      onChange={(e) => setPresetName(e.target.value)}
-                      className="rounded-2xl h-12 text-base"
-                    />
-                    <Button 
-                      onClick={saveAsPreset}
-                      className="rounded-2xl h-12 px-8 whitespace-nowrap" 
-                      disabled={!presetName.trim()}
-                    >
-                      <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
-                      Saqlash
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* User Saved Presets */}
-              {savedPresets.length > 0 && (
-                <Card className="rounded-3xl border-2">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-2xl">⭐ Mening Ranglarim</CardTitle>
-                        <CardDescription>Siz saqlagan {savedPresets.length} ta shaxsiy preset</CardDescription>
-                      </div>
-                      <Badge variant="secondary" className="text-lg px-4 py-1">{savedPresets.length}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {savedPresets.map((preset, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="relative group"
+                  {/* Create New Theme Section */}
+                  <Card className="rounded-3xl border-2 border-dashed border-primary/50 bg-primary/5">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Plus className="h-5 w-5" />
+                        Yangi Rang Yaratish
+                      </CardTitle>
+                      <CardDescription>
+                        O'zingizning rang kombinatsiyangizni yaratib, database'ga qo'shing
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {!isCreatingTheme ? (
+                        <Button 
+                          onClick={() => setIsCreatingTheme(true)}
+                          className="w-full rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
+                          style={{
+                            background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`
+                          }}
                         >
-                          <button
-                            onClick={() => setThemeColors(preset.colors)}
-                            className="w-full p-4 rounded-2xl border-2 hover:border-primary transition-all hover:shadow-lg"
-                            title={preset.name}
-                          >
-                            <div className="h-12 rounded-xl mb-3 ring-2 ring-offset-2 ring-transparent group-hover:ring-primary/50 transition-all" 
-                              style={{
-                                background: `linear-gradient(to right, ${preset.colors.primary}, ${preset.colors.secondary}, ${preset.colors.accent})`
-                              }}
-                            ></div>
-                            <p className="text-sm font-semibold truncate">{preset.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">Shaxsiy preset</p>
-                          </button>
-                          <button
-                            onClick={() => deletePreset(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all shadow-lg"
-                            title="O'chirish"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                          <Plus className="mr-2 h-5 w-5" />
+                          Yangi Rang Yaratish
+                        </Button>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Nom</Label>
+                            <Input
+                              placeholder="Theme nomi..."
+                              value={newTheme.name}
+                              onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
+                              className="rounded-2xl"
+                            />
+                          </div>
 
-              {/* Database Themes - Tayyor Ranglar */}
-              <Card className="rounded-3xl border-2">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-2xl">🎨 Tayyor Ranglar</CardTitle>
-                      <CardDescription>Professional dizaynerlarga mo'ljallangan ranglar to'plami</CardDescription>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={fetchDatabaseThemes}
-                      disabled={isLoadingThemes}
-                      className="rounded-2xl"
-                    >
-                      <RefreshCw className={cn("h-4 w-4 mr-2", isLoadingThemes && "animate-spin")} />
-                      Yangilash
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingThemes ? (
-                    <div className="text-center py-12">
-                      <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-primary" />
-                      <p className="text-muted-foreground">Tayyor ranglar yuklanmoqda...</p>
-                    </div>
-                  ) : databaseThemes.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {databaseThemes.map((theme) => (
-                        <motion.button
-                          key={theme.id}
-                          onClick={() => setThemeColors(theme.colors)}
-                          className="p-4 rounded-2xl border-2 hover:border-primary transition-all relative group hover:shadow-lg"
-                          title={theme.description || theme.name}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <div className="h-12 rounded-xl mb-3 ring-2 ring-offset-2 ring-transparent group-hover:ring-primary/50 transition-all" 
+                          <div className="space-y-2">
+                            <Label>Tavsif (ixtiyoriy)</Label>
+                            <Input
+                              placeholder="Qisqacha tavsif..."
+                              value={newTheme.description}
+                              onChange={(e) => setNewTheme({ ...newTheme, description: e.target.value })}
+                              className="rounded-2xl"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <Label className="text-xs">Primary</Label>
+                              <Input
+                                type="color"
+                                value={newTheme.colors.primary}
+                                onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, primary: e.target.value } })}
+                                className="h-12 rounded-xl cursor-pointer"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Secondary</Label>
+                              <Input
+                                type="color"
+                                value={newTheme.colors.secondary}
+                                onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, secondary: e.target.value } })}
+                                className="h-12 rounded-xl cursor-pointer"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Accent</Label>
+                              <Input
+                                type="color"
+                                value={newTheme.colors.accent}
+                                onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, accent: e.target.value } })}
+                                className="h-12 rounded-xl cursor-pointer"
+                              />
+                            </div>
+                          </div>
+
+                          <div 
+                            className="h-16 rounded-xl"
                             style={{
-                              background: `linear-gradient(to right, ${theme.colors.primary}, ${theme.colors.secondary}, ${theme.colors.accent})`
+                              background: `linear-gradient(135deg, ${newTheme.colors.primary}, ${newTheme.colors.secondary}, ${newTheme.colors.accent})`
                             }}
-                          ></div>
-                          <p className="text-sm font-semibold truncate">{theme.name}</p>
-                          {theme.description && (
-                            <p className="text-xs text-muted-foreground truncate mt-1">{theme.description}</p>
-                          )}
-                          {theme.is_default && (
-                            <Badge className="absolute top-2 right-2 text-xs">Default</Badge>
-                          )}
-                        </motion.button>
-                      ))}
-                    </div>
+                          />
+
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setIsCreatingTheme(false)}
+                              className="flex-1 rounded-2xl"
+                            >
+                              Bekor Qilish
+                            </Button>
+                            <Button
+                              onClick={handleCreateTheme}
+                              className="flex-1 rounded-2xl"
+                            >
+                              <Save className="mr-2 h-4 w-4" />
+                              Saqlash
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* 💾 TAB 3: MENING RANGLARIM (User's Saved Presets) */}
+                <TabsContent value="saved" className="space-y-6 mt-6">
+                  {savedPresets.length > 0 ? (
+                    <Card className="rounded-3xl border-2">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-2xl flex items-center gap-2">
+                              <Bookmark className="h-6 w-6 text-blue-500" />
+                              Mening Ranglarim
+                            </CardTitle>
+                            <CardDescription>
+                              Siz saqlagan {savedPresets.length} ta shaxsiy preset
+                            </CardDescription>
+                          </div>
+                          <Badge variant="secondary" className="text-lg px-4 py-2">{savedPresets.length}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {savedPresets.map((preset, index) => (
+                            <motion.div
+                              key={index}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                              className="relative group"
+                            >
+                              <button
+                                onClick={() => {
+                                  setThemeColors(preset.colors)
+                                  setAppearanceTab("editor")
+                                }}
+                                className="w-full p-5 rounded-2xl border-2 hover:border-primary transition-all hover:shadow-xl"
+                                title={preset.name}
+                              >
+                                <div 
+                                  className="h-16 rounded-xl mb-4 ring-2 ring-offset-2 ring-transparent group-hover:ring-primary/50 transition-all shadow-md" 
+                                  style={{
+                                    background: `linear-gradient(135deg, ${preset.colors.primary}, ${preset.colors.secondary}, ${preset.colors.accent})`
+                                  }}
+                                >
+                                  <div className="h-full w-full rounded-xl bg-white/5 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-white font-medium text-sm">Tanlash</span>
+                                  </div>
+                                </div>
+                                <p className="text-sm font-semibold truncate mb-1">{preset.name}</p>
+                                <p className="text-xs text-muted-foreground">Shaxsiy preset</p>
+                              </button>
+                              <button
+                                onClick={() => deletePreset(index)}
+                                className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:scale-110"
+                                title="O'chirish"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    <div className="text-center py-12 border-2 border-dashed rounded-2xl bg-muted/20">
-                      <svg className="h-12 w-12 mx-auto mb-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                      </svg>
-                      <p className="text-muted-foreground mb-2">Tayyor ranglar topilmadi</p>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={fetchDatabaseThemes}
-                        className="mt-2 rounded-2xl"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Yuklash
-                      </Button>
-                    </div>
+                    <Card className="rounded-3xl border-2 border-dashed">
+                      <CardContent className="text-center py-16">
+                        <Bookmark className="h-20 w-20 mx-auto mb-4 text-muted-foreground/50" />
+                        <h3 className="text-2xl font-bold mb-2">Hali preset'lar yo'q</h3>
+                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                          O'zingizga yoqqan ranglarni preset sifatida saqlang va keyinchalik tez ishlatishingiz mumkin bo'ladi.
+                        </p>
+                        <Button 
+                          onClick={() => setAppearanceTab("editor")}
+                          className="rounded-2xl"
+                          size="lg"
+                        >
+                          <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                          </svg>
+                          Rang Tanlashga O'tish
+                        </Button>
+                      </CardContent>
+                    </Card>
                   )}
-                </CardContent>
-              </Card>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
