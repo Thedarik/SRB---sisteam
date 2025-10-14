@@ -6,6 +6,8 @@
 
 import React, { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Award,
   Bell,
@@ -611,6 +613,18 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   useEffect(() => {
     fetchRooms()
   }, [])
+
+  // Check if time slot is occupied for selected room
+  const isTimeSlotOccupied = (roomName: string, timeSlot: string, excludeGroupId?: string) => {
+    if (!roomName || !timeSlot) return false
+    
+    return groupsData.some(group => 
+      group.room === roomName && 
+      group.time_slot === timeSlot && 
+      group.status === 'active' &&
+      group.id !== excludeGroupId // Exclude current group when editing
+    )
+  }
 
   // Add new room
   const handleAddRoom = async () => {
@@ -2002,7 +2016,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                               )}
                             </CardContent>
                             <CardFooter className="flex gap-2 pt-3">
-                              <Button variant="secondary" className="flex-1 rounded-2xl text-xs">
+                              <Button 
+                                variant="secondary" 
+                                className="flex-1 rounded-2xl text-xs cursor-not-allowed opacity-60"
+                                disabled
+                                title="Hozircha mavjud emas"
+                              >
                                 <Eye className="mr-1 h-3 w-3" />
                                 Boshqarish
                               </Button>
@@ -2176,11 +2195,25 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                 <SelectValue placeholder="Vaqtni tanlang" />
                               </SelectTrigger>
                               <SelectContent>
-                                {timeSlots.map((slot) => (
-                                  <SelectItem key={slot.label} value={slot.label}>
-                                    {slot.label}
-                                  </SelectItem>
-                                ))}
+                                {timeSlots.map((slot) => {
+                                  const isOccupied = isTimeSlotOccupied(newGroup.room, slot.label)
+                                  return (
+                                    <SelectItem 
+                                      key={slot.label} 
+                                      value={slot.label}
+                                      className={isOccupied ? "bg-red-50" : ""}
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        <span>{slot.label}</span>
+                                        {isOccupied && (
+                                          <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">
+                                            BAND
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  )
+                                })}
                               </SelectContent>
                             </Select>
                           </div>
@@ -2400,7 +2433,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         </CardContent>
 
                         <CardFooter className="flex gap-2">
-                          <Button variant="secondary" className="flex-1 rounded-2xl">
+                          <Button 
+                            variant="secondary" 
+                            className="flex-1 rounded-2xl cursor-not-allowed opacity-60"
+                            disabled
+                            title="Hozircha mavjud emas"
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             Boshqarish
                           </Button>
@@ -3742,67 +3780,67 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {/* Add Room Form */}
+                  {isAddingRoom && (
+                    <div className="mb-4 p-4 rounded-2xl border-2 border-dashed border-primary/50 bg-primary/5">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Xona nomi (masalan: Xona 4, A-xona, Katta zal)"
+                          value={newRoomName}
+                          onChange={(e) => setNewRoomName(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddRoom()}
+                          className="rounded-2xl"
+                          autoFocus
+                        />
+                        <Button onClick={handleAddRoom} className="rounded-2xl">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsAddingRoom(false)
+                            setNewRoomName("")
+                          }}
+                          className="rounded-2xl"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rooms List or Empty State */}
                   {rooms.length === 0 ? (
                     <div className="text-center py-8">
                       <Building className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
                       <p className="text-muted-foreground mb-4">Hali xona qo'shilmagan</p>
-                      <Button onClick={() => setIsAddingRoom(true)} variant="outline" className="rounded-2xl">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Birinchi Xonani Qo'shing
-                      </Button>
+                      {!isAddingRoom && (
+                        <Button onClick={() => setIsAddingRoom(true)} variant="outline" className="rounded-2xl">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Birinchi Xonani Qo'shing
+                        </Button>
+                      )}
                     </div>
                   ) : (
-                    <>
-                      {/* Add Room Form */}
-                      {isAddingRoom && (
-                        <div className="mb-4 p-4 rounded-2xl border-2 border-dashed border-primary/50 bg-primary/5">
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Xona nomi (masalan: Xona 4, A-xona, Katta zal)"
-                              value={newRoomName}
-                              onChange={(e) => setNewRoomName(e.target.value)}
-                              onKeyPress={(e) => e.key === 'Enter' && handleAddRoom()}
-                              className="rounded-2xl"
-                              autoFocus
-                            />
-                            <Button onClick={handleAddRoom} className="rounded-2xl">
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              onClick={() => {
-                                setIsAddingRoom(false)
-                                setNewRoomName("")
-                              }}
-                              className="rounded-2xl"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Rooms List */}
-                      <div className="flex flex-wrap gap-2">
-                        {rooms.map((room) => (
-                          <div 
-                            key={room.id}
-                            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-muted/50 border-2"
+                    <div className="flex flex-wrap gap-2">
+                      {rooms.map((room) => (
+                        <div 
+                          key={room.id}
+                          className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-muted/50 border-2"
+                        >
+                          <Building className="h-4 w-4 text-primary" />
+                          <span className="font-medium">{room.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-600"
+                            onClick={() => handleDeleteRoom(room.id, room.name)}
                           >
-                            <Building className="h-4 w-4 text-primary" />
-                            <span className="font-medium">{room.name}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-600"
-                              onClick={() => handleDeleteRoom(room.id, room.name)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -4131,7 +4169,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
       {/* Edit Group Dialog */}
       <Dialog open={isEditGroupDialogOpen} onOpenChange={setIsEditGroupDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[1000px] max-h-[95vh]">
           <DialogHeader>
             <DialogTitle 
               className="text-2xl font-bold bg-clip-text text-transparent"
@@ -4146,7 +4184,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-6 py-4 max-h-[500px] overflow-y-auto">
+          <div className="grid gap-6 py-4 px-4 max-h-[70vh] overflow-y-auto">
             {/* Group Name */}
             <div className="grid gap-2">
               <Label htmlFor="editGroupName" className="flex items-center gap-2">
@@ -4220,11 +4258,25 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   <SelectValue placeholder="Vaqtni tanlang" />
                 </SelectTrigger>
                 <SelectContent>
-                  {timeSlots.map((slot) => (
-                    <SelectItem key={slot.label} value={slot.label}>
-                      {slot.label}
-                    </SelectItem>
-                  ))}
+                  {timeSlots.map((slot) => {
+                    const isOccupied = isTimeSlotOccupied(editGroupData.room, slot.label, editingGroup?.id)
+                    return (
+                      <SelectItem 
+                        key={slot.label} 
+                        value={slot.label}
+                        className={isOccupied ? "bg-red-50" : ""}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span>{slot.label}</span>
+                          {isOccupied && (
+                            <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">
+                              BAND
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
