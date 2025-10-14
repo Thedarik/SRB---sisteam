@@ -4,13 +4,14 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 // GET - Bitta guruhni ID bo'yicha olish
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { data, error } = await supabaseAdmin
       .from('groups')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -45,12 +46,13 @@ export async function GET(
 // PUT - Guruhni yangilash
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
-    console.log('📝 Guruh yangilanmoqda:', params.id, body)
+    console.log('📝 Guruh yangilanmoqda:', id, body)
     
     // ✅ 1. VALIDATSIYA
     if (!body.name?.trim()) {
@@ -77,7 +79,7 @@ export async function PUT(
     const { data: existingGroup, error: checkError } = await supabaseAdmin
       .from('groups')
       .select('id')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (checkError || !existingGroup) {
@@ -95,6 +97,8 @@ export async function PUT(
       name: body.name.trim(),
       course_type: body.course_type.trim(),
       schedule: body.schedule?.trim() || null,
+      room: body.room?.trim() || null,
+      time_slot: body.time_slot?.trim() || null,
       start_date: body.start_date || null,
       end_date: body.end_date || null,
       teacher_name: body.teacher_name?.trim() || null,
@@ -108,7 +112,7 @@ export async function PUT(
     const { data: updatedGroup, error: updateError } = await supabaseAdmin
       .from('groups')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -153,16 +157,17 @@ export async function PUT(
 // DELETE - Guruhni o'chirish (soft delete - statusni o'zgartirish)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🗑️ Guruh o\'chirilmoqda:', params.id)
+    const { id } = await params
+    console.log('🗑️ Guruh o\'chirilmoqda:', id)
     
     // ✅ Soft delete - faqat statusni o'zgartirish
     const { data, error } = await supabaseAdmin
       .from('groups')
       .update({ status: 'inactive', updated_at: new Date().toISOString() })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 

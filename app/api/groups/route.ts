@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
       name: body.name.trim(),
       course_type: body.course_type.trim(),
       schedule: body.schedule?.trim() || null,
+      room: body.room?.trim() || null,
+      time_slot: body.time_slot?.trim() || null,
       start_date: body.start_date || null,
       end_date: body.end_date || null,
       teacher_name: body.teacher_name?.trim() || null,

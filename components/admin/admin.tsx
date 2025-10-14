@@ -1,3 +1,7 @@
+
+
+
+
 "use client"
 
 import React, { useEffect, useState } from "react"
@@ -67,6 +71,7 @@ import {
   SendHorizontal,
   Copy,
   Share2,
+  Info,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -504,7 +509,7 @@ const reportCards: ReportCard[] = [
   { title: "Umumiy Statistika", desc: "Barcha metrikalar va trendlar", icon: <PieChart className="h-6 w-6" />, color: "bg-pink-500" },
 ]
 
-type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance"
+type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance" | "timetable"
 
 // ✅ ASOSIY O'ZGARISH: Bu yerda export qilish kerak
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
@@ -540,6 +545,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     name: "",
     course_type: "",
     schedule: "",
+    room: "",
+    time_slot: "",
     start_date: "",
     end_date: "",
     teacher_name: "",
@@ -558,12 +565,128 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     status: "active"
   })
 
+  // View Student Details Dialog State
+  const [isViewStudentDialogOpen, setIsViewStudentDialogOpen] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+
+  // Time Table State
+  const [rooms, setRooms] = useState<any[]>([])
+  const [newRoomName, setNewRoomName] = useState("")
+  const [isAddingRoom, setIsAddingRoom] = useState(false)
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false)
+  const [roomsError, setRoomsError] = useState<string | null>(null)
+  
+  const timeSlots = [
+    { start: "08:00", end: "10:00", label: "08:00 - 10:00" },
+    { start: "10:00", end: "12:00", label: "10:00 - 12:00" },
+    { start: "12:00", end: "14:00", label: "12:00 - 14:00" },
+    { start: "14:00", end: "16:00", label: "14:00 - 16:00" },
+    { start: "16:00", end: "18:00", label: "16:00 - 18:00" },
+    { start: "18:00", end: "20:00", label: "18:00 - 20:00" },
+  ]
+
+  // Fetch rooms from Supabase
+  const fetchRooms = async () => {
+    setIsLoadingRooms(true)
+    setRoomsError(null)
+    try {
+      const response = await fetch('/api/rooms')
+      const result = await response.json()
+
+      if (!response.ok) {
+        setRoomsError(result.error || 'Ma\'lumotlarni yuklashda xatolik')
+        console.error('Xonalarni yuklashda xatolik:', result)
+      } else {
+        setRooms(result.data || [])
+      }
+    } catch (error) {
+      console.error('Xonalarni yuklashda xatolik:', error)
+      setRoomsError('Server bilan bog\'lanishda xatolik')
+    } finally {
+      setIsLoadingRooms(false)
+    }
+  }
+
+  // Load rooms on mount
+  useEffect(() => {
+    fetchRooms()
+  }, [])
+
+  // Add new room
+  const handleAddRoom = async () => {
+    if (!newRoomName.trim()) {
+      alert("❌ Xona nomini kiriting!")
+      return
+    }
+
+    try {
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newRoomName.trim(),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      // Success
+      setNewRoomName("")
+      setIsAddingRoom(false)
+      alert("✅ Xona muvaffaqiyatli qo'shildi!")
+      
+      // Refresh rooms list
+      fetchRooms()
+    } catch (error) {
+      console.error('Xona qo\'shishda xatolik:', error)
+      alert('❌ Server bilan bog\'lanishda xatolik')
+    }
+  }
+
+  // Delete room
+  const handleDeleteRoom = async (roomId: string, roomName: string) => {
+    if (!confirm(`"${roomName}" xonasini o'chirmoqchimisiz?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      // Success
+      alert("✅ Xona muvaffaqiyatli o'chirildi!")
+      
+      // Refresh rooms list
+      fetchRooms()
+    } catch (error) {
+      console.error('Xonani o\'chirishda xatolik:', error)
+      alert('❌ Server bilan bog\'lanishda xatolik')
+    }
+  }
+
   // Add Group State (inline form, not dialog)
   const [isAddingGroup, setIsAddingGroup] = useState(false)
   const [newGroup, setNewGroup] = useState({
     name: "",
     course_type: "",
     schedule: "",
+    room: "",
+    time_slot: "",
     start_date: "",
     end_date: "",
     teacher_name: "",
@@ -748,6 +871,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       name: group.name || "",
       course_type: group.course_type || "",
       schedule: group.schedule || "",
+      room: group.room || "",
+      time_slot: group.time_slot || "",
       start_date: group.start_date || "",
       end_date: group.end_date || "",
       teacher_name: group.teacher_name || "",
@@ -785,6 +910,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           name: editGroupData.name.trim(),
           course_type: editGroupData.course_type.trim(),
           schedule: editGroupData.schedule?.trim() || null,
+          room: editGroupData.room?.trim() || null,
+          time_slot: editGroupData.time_slot?.trim() || null,
           start_date: editGroupData.start_date || null,
           end_date: editGroupData.end_date || null,
           teacher_name: editGroupData.teacher_name?.trim() || null,
@@ -809,6 +936,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         name: "",
         course_type: "",
         schedule: "",
+        room: "",
+        time_slot: "",
         start_date: "",
         end_date: "",
         teacher_name: "",
@@ -935,6 +1064,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           name: newGroup.name.trim(),
           course_type: newGroup.course_type.trim(),
           schedule: newGroup.schedule?.trim() || null,
+          room: newGroup.room?.trim() || null,
+          time_slot: newGroup.time_slot?.trim() || null,
           start_date: newGroup.start_date || null,
           end_date: newGroup.end_date || null,
           teacher_name: newGroup.teacher_name?.trim() || null,
@@ -957,6 +1088,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         name: "",
         course_type: "",
         schedule: "",
+        room: "",
+        time_slot: "",
         start_date: "",
         end_date: "",
         teacher_name: "",
@@ -1117,6 +1250,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       icon: <BarChart3 />,
       isActive: activeTab === "reports",
       onClick: () => setActiveTab("reports")
+    },
+    {
+      title: "Dars Jadvali",
+      icon: <Calendar />,
+      isActive: activeTab === "timetable",
+      onClick: () => setActiveTab("timetable")
     },
     {
       title: "Sozlamalar",
@@ -1994,15 +2133,67 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             />
                           </div>
 
-                          {/* Schedule */}
+                          {/* Room Selection */}
+                          <div className="space-y-2">
+                            <Label htmlFor="newRoom" className="flex items-center gap-2 text-base">
+                              <Building className="h-5 w-5 text-primary" />
+                              Xona
+                            </Label>
+                            <Select 
+                              value={newGroup.room} 
+                              onValueChange={(value) => setNewGroup({ ...newGroup, room: value })}
+                            >
+                              <SelectTrigger className="rounded-2xl h-12">
+                                <SelectValue placeholder="Xonani tanlang" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {rooms.length > 0 ? (
+                                  rooms.map((room) => (
+                                    <SelectItem key={room.id} value={room.name}>
+                                      {room.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="none" disabled>
+                                    Avval xona qo'shing
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Time Slot Selection */}
+                          <div className="space-y-2">
+                            <Label htmlFor="newTimeSlot" className="flex items-center gap-2 text-base">
+                              <Clock className="h-5 w-5 text-primary" />
+                              Dars Vaqti
+                            </Label>
+                            <Select 
+                              value={newGroup.time_slot} 
+                              onValueChange={(value) => setNewGroup({ ...newGroup, time_slot: value })}
+                            >
+                              <SelectTrigger className="rounded-2xl h-12">
+                                <SelectValue placeholder="Vaqtni tanlang" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timeSlots.map((slot) => (
+                                  <SelectItem key={slot.label} value={slot.label}>
+                                    {slot.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Schedule (auto-generated or manual) */}
                           <div className="md:col-span-2 space-y-2">
                             <Label htmlFor="newSchedule" className="flex items-center gap-2 text-base">
                               <CalendarIcon className="h-5 w-5 text-primary" />
-                              Dars Jadvali
+                              Kunlar (ixtiyoriy)
                             </Label>
                             <Input
                               id="newSchedule"
-                              placeholder="Masalan: Dush-Chor-Juma 09:00-12:00"
+                              placeholder="Masalan: Dush-Chor-Juma"
                               value={newGroup.schedule}
                               onChange={(e) => setNewGroup({ ...newGroup, schedule: e.target.value })}
                               className="rounded-2xl h-12"
@@ -2065,6 +2256,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                                 name: "",
                                 course_type: "",
                                 schedule: "",
+                                room: "",
+                                time_slot: "",
                                 start_date: "",
                                 end_date: "",
                                 teacher_name: "",
@@ -2494,7 +2687,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                       {filteredStudents.map((student, index) => (
                     <motion.div
                       key={student.id}
@@ -2502,79 +2695,35 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                     >
-                      <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12 border-2 border-primary/20">
-                              <AvatarFallback>{formatInitials(student.full_name)}</AvatarFallback>
+                      <Card 
+                        className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                        onClick={() => {
+                          setSelectedStudent(student)
+                          setIsViewStudentDialogOpen(true)
+                        }}
+                      >
+                        <CardHeader className="pb-2 px-4 pt-4">
+                          <div className="flex flex-col items-center gap-2">
+                            <Avatar className="h-16 w-16 border-2 border-primary/20">
+                              <AvatarFallback className="text-lg">{formatInitials(student.full_name)}</AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <CardTitle className="text-base leading-tight truncate">{student.full_name}</CardTitle>
-                              {getStatusBadge(student.status)}
+                            <div className="text-center w-full">
+                              <CardTitle className="text-sm leading-tight truncate">{student.full_name}</CardTitle>
+                              <div className="mt-1 flex justify-center">
+                                {getStatusBadge(student.status)}
+                              </div>
                             </div>
                           </div>
                         </CardHeader>
 
-                        <CardContent className="space-y-3">
-                          <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Telefon</p>
-                            <p className="font-medium text-sm">{student.phone_number}</p>
-                          </div>
-
-                          <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Guruh</p>
-                            <p className="font-medium text-sm">
-                              {student.groups?.name || 'Guruh tayinlanmagan'}
-                            </p>
-                          </div>
-
-                          {student.passport_number && (
-                            <div className="space-y-1">
-                              <p className="text-sm text-muted-foreground">Passport</p>
-                              <p className="font-medium text-sm">{student.passport_number}</p>
-                            </div>
-                          )}
-
-                          <div className="space-y-1">
-                            <p className="text-sm text-muted-foreground">Qo'shilgan sana</p>
-                            <p className="font-medium text-xs">
-                              {formatDate(student.enrollment_date)}
+                        <CardContent className="space-y-2 px-4 pb-4">
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground truncate">{student.phone_number}</p>
+                            <p className="text-xs font-medium truncate mt-1">
+                              {student.groups?.name || 'Guruhsiz'}
                             </p>
                           </div>
                         </CardContent>
-
-                        <CardFooter className="flex gap-2 pt-3">
-                          <Button variant="secondary" className="flex-1 rounded-2xl text-xs">
-                            <Eye className="mr-1 h-3 w-3" />
-                            Profil
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="rounded-2xl" 
-                            title="SMS yuborish"
-                          >
-                            <SendHorizontal className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="rounded-2xl" 
-                            title="Tahrirlash"
-                            onClick={() => openEditStudentDialog(student)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="rounded-2xl text-red-600 hover:bg-red-50" 
-                            title="O'chirish"
-                            onClick={() => handleDeleteStudent(student)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </CardFooter>
                       </Card>
                     </motion.div>
                       ))}
@@ -3381,108 +3530,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                     </CardContent>
                   </Card>
 
-                  {/* Create New Theme Section */}
-                  <Card className="rounded-3xl border-2 border-dashed border-primary/50 bg-primary/5">
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Plus className="h-5 w-5" />
-                        Yangi Rang Yaratish
-                      </CardTitle>
-                      <CardDescription>
-                        O'zingizning rang kombinatsiyangizni yaratib, database'ga qo'shing
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {!isCreatingTheme ? (
-                        <Button 
-                          onClick={() => setIsCreatingTheme(true)}
-                          className="w-full rounded-2xl h-12 text-white hover:opacity-90 transition-opacity"
-                          style={{
-                            background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`
-                          }}
-                        >
-                          <Plus className="mr-2 h-5 w-5" />
-                          Yangi Rang Yaratish
-                        </Button>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label>Nom</Label>
-                            <Input
-                              placeholder="Theme nomi..."
-                              value={newTheme.name}
-                              onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
-                              className="rounded-2xl"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Tavsif (ixtiyoriy)</Label>
-                            <Input
-                              placeholder="Qisqacha tavsif..."
-                              value={newTheme.description}
-                              onChange={(e) => setNewTheme({ ...newTheme, description: e.target.value })}
-                              className="rounded-2xl"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-3 gap-3">
-                            <div>
-                              <Label className="text-xs">Primary</Label>
-                              <Input
-                                type="color"
-                                value={newTheme.colors.primary}
-                                onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, primary: e.target.value } })}
-                                className="h-12 rounded-xl cursor-pointer"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Secondary</Label>
-                              <Input
-                                type="color"
-                                value={newTheme.colors.secondary}
-                                onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, secondary: e.target.value } })}
-                                className="h-12 rounded-xl cursor-pointer"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs">Accent</Label>
-                              <Input
-                                type="color"
-                                value={newTheme.colors.accent}
-                                onChange={(e) => setNewTheme({ ...newTheme, colors: { ...newTheme.colors, accent: e.target.value } })}
-                                className="h-12 rounded-xl cursor-pointer"
-                              />
-                            </div>
-                          </div>
-
-                          <div 
-                            className="h-16 rounded-xl"
-                            style={{
-                              background: `linear-gradient(135deg, ${newTheme.colors.primary}, ${newTheme.colors.secondary}, ${newTheme.colors.accent})`
-                            }}
-                          />
-
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setIsCreatingTheme(false)}
-                              className="flex-1 rounded-2xl"
-                            >
-                              Bekor Qilish
-                            </Button>
-                            <Button
-                              onClick={handleCreateTheme}
-                              className="flex-1 rounded-2xl"
-                            >
-                              <Save className="mr-2 h-4 w-4" />
-                              Saqlash
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  {/* Yangi Rang Yaratish - Faqat Super Adminlar uchun (keyingi versiyada qo'shiladi) */}
                 </TabsContent>
 
                 {/* 💾 TAB 3: MENING RANGLARIM (User's Saved Presets) */}
@@ -3655,6 +3703,291 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+          )}
+
+          {/* TIME TABLE TAB */}
+          {activeTab === "timetable" && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">📅 Dars Jadvali</h2>
+                  <p className="text-muted-foreground">Xonalar va dars vaqtlari jadvali - bo'sh xonalarni topish oson!</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="rounded-2xl">
+                    <Download className="mr-2 h-4 w-4" />
+                    Excel yuklab olish
+                  </Button>
+                </div>
+              </div>
+
+              {/* Rooms Management */}
+              <Card className="rounded-3xl border-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-xl">🏢 Xonalar Boshqaruvi</CardTitle>
+                      <CardDescription>Oquv markazingizdagi xonalarni qo'shing va boshqaring</CardDescription>
+                    </div>
+                    <Button 
+                      onClick={() => setIsAddingRoom(true)}
+                      className="rounded-2xl"
+                      size="sm"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Xona Qo'shish
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {rooms.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Building className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground mb-4">Hali xona qo'shilmagan</p>
+                      <Button onClick={() => setIsAddingRoom(true)} variant="outline" className="rounded-2xl">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Birinchi Xonani Qo'shing
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Add Room Form */}
+                      {isAddingRoom && (
+                        <div className="mb-4 p-4 rounded-2xl border-2 border-dashed border-primary/50 bg-primary/5">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Xona nomi (masalan: Xona 4, A-xona, Katta zal)"
+                              value={newRoomName}
+                              onChange={(e) => setNewRoomName(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && handleAddRoom()}
+                              className="rounded-2xl"
+                              autoFocus
+                            />
+                            <Button onClick={handleAddRoom} className="rounded-2xl">
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => {
+                                setIsAddingRoom(false)
+                                setNewRoomName("")
+                              }}
+                              className="rounded-2xl"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rooms List */}
+                      <div className="flex flex-wrap gap-2">
+                        {rooms.map((room) => (
+                          <div 
+                            key={room.id}
+                            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-muted/50 border-2"
+                          >
+                            <Building className="h-4 w-4 text-primary" />
+                            <span className="font-medium">{room.name}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 rounded-full hover:bg-red-100 hover:text-red-600"
+                              onClick={() => handleDeleteRoom(room.id, room.name)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Legend */}
+              <Card className="rounded-3xl border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-6 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-white border-2"></div>
+                      <span className="text-sm">Bo'sh</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-green-100 border-2 border-green-300"></div>
+                      <span className="text-sm">Faol guruh</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-gray-100 border-2 border-gray-300"></div>
+                      <span className="text-sm">Nofaol</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Time Table Grid */}
+              <Card className="rounded-3xl border-2 overflow-x-auto">
+                <CardContent className="p-0">
+                  {rooms.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Building className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <h3 className="font-semibold text-xl mb-2">Xonalar mavjud emas</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Jadval ko'rish uchun avval xonalarni qo'shing
+                      </p>
+                      <Button 
+                        onClick={() => setIsAddingRoom(true)}
+                        className="rounded-2xl"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Xona Qo'shish
+                      </Button>
+                    </div>
+                  ) : (
+                  <div className="min-w-[800px]">
+                    {/* Header Row */}
+                    <div 
+                      className="grid border-b-2"
+                      style={{ gridTemplateColumns: `200px repeat(${rooms.length}, minmax(150px, 1fr))` }}
+                    >
+                      <div className="p-4 bg-muted/50 font-bold border-r-2">
+                        Vaqt / Xona
+                      </div>
+                      {rooms.map((room) => (
+                        <div 
+                          key={room.id}
+                          className="p-4 bg-muted/30 font-bold text-center border-r last:border-r-0"
+                        >
+                          {room.name}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Time Slots Rows */}
+                    {timeSlots.map((slot, slotIndex) => (
+                      <div 
+                        key={slotIndex} 
+                        className="grid border-b last:border-b-0"
+                        style={{ gridTemplateColumns: `200px repeat(${rooms.length}, minmax(150px, 1fr))` }}
+                      >
+                        <div className="p-4 bg-muted/20 font-semibold border-r-2 flex items-center">
+                          <Clock className="h-4 w-4 mr-2 text-primary" />
+                          {slot.label}
+                        </div>
+                        {rooms.map((room) => {
+                          // Find group for this room and time slot
+                          const groupInSlot = groupsData.find(group => {
+                            // Direct matching: check room and time_slot fields
+                            return group.room === room.name && group.time_slot === slot.label && group.status === 'active'
+                          })
+
+                          return (
+                            <div 
+                              key={room.id}
+                              className={cn(
+                                "p-3 border-r last:border-r-0 min-h-[80px] transition-all hover:shadow-inner",
+                                groupInSlot 
+                                  ? groupInSlot.status === 'active'
+                                    ? "bg-green-50 border-green-100 hover:bg-green-100 cursor-pointer"
+                                    : "bg-gray-50 border-gray-100"
+                                  : "bg-white hover:bg-blue-50/30"
+                              )}
+                            >
+                              {groupInSlot ? (
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-xs truncate" title={groupInSlot.name}>
+                                    {groupInSlot.name}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground truncate">
+                                    {groupInSlot.teacher_name || "O'qituvchi"}
+                                  </p>
+                                  <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                                    {groupInSlot.current_students || 0}/{groupInSlot.max_students || 30}
+                                  </Badge>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center h-full opacity-30">
+                                  <Plus className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Statistics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="rounded-3xl border-2">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Jami Xonalar</p>
+                        <p className="text-3xl font-bold mt-1">{rooms.length}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-blue-50">
+                        <Building className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-3xl border-2">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Vaqt Slotlari</p>
+                        <p className="text-3xl font-bold mt-1">{timeSlots.length}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-green-50">
+                        <Clock className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-3xl border-2">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Band Xonalar</p>
+                        <p className="text-3xl font-bold mt-1">
+                          {groupsData.filter(g => g.status === 'active').length}
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-orange-50">
+                        <CheckCircle className="h-6 w-6 text-orange-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Help Card */}
+              <Card className="rounded-3xl border-2 border-blue-200 bg-blue-50/50">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-2xl bg-blue-100">
+                      <Info className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-2">Qanday foydalanish kerak?</h3>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
+                        <li>• Oq rangdagi katak - bo'sh xona va vaqt</li>
+                        <li>• Yashil rangdagi katak - faol guruh bor</li>
+                        <li>• Yangi guruh qo'shishda bo'sh vaqt va xonani osongina topishingiz mumkin</li>
+                        <li>• Guruh kartasiga bosish orqali to'liq ma'lumotni ko'rishingiz mumkin</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </main>
@@ -3844,15 +4177,67 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               />
             </div>
 
-            {/* Schedule */}
+            {/* Room Selection */}
+            <div className="grid gap-2">
+              <Label htmlFor="editRoom" className="flex items-center gap-2">
+                <Building className="h-4 w-4 text-primary" />
+                Xona
+              </Label>
+              <Select 
+                value={editGroupData.room} 
+                onValueChange={(value) => setEditGroupData({ ...editGroupData, room: value })}
+              >
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue placeholder="Xonani tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rooms.length > 0 ? (
+                    rooms.map((room) => (
+                      <SelectItem key={room.id} value={room.name}>
+                        {room.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>
+                      Avval xona qo'shing
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Time Slot Selection */}
+            <div className="grid gap-2">
+              <Label htmlFor="editTimeSlot" className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Dars Vaqti
+              </Label>
+              <Select 
+                value={editGroupData.time_slot} 
+                onValueChange={(value) => setEditGroupData({ ...editGroupData, time_slot: value })}
+              >
+                <SelectTrigger className="rounded-2xl">
+                  <SelectValue placeholder="Vaqtni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeSlots.map((slot) => (
+                    <SelectItem key={slot.label} value={slot.label}>
+                      {slot.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Schedule (Days) */}
             <div className="grid gap-2">
               <Label htmlFor="editSchedule" className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-primary" />
-                Dars Jadvali
+                Kunlar (ixtiyoriy)
               </Label>
               <Input
                 id="editSchedule"
-                placeholder="Masalan: Dush-Chor-Juma 09:00-12:00"
+                placeholder="Masalan: Dush-Chor-Juma"
                 value={editGroupData.schedule}
                 onChange={(e) => setEditGroupData({ ...editGroupData, schedule: e.target.value })}
                 className="rounded-2xl"
@@ -4133,6 +4518,170 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             >
               <Save className="mr-2 h-4 w-4" />
               Saqlash
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Student Details Dialog */}
+      <Dialog open={isViewStudentDialogOpen} onOpenChange={setIsViewStudentDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle 
+              className="text-2xl font-bold bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
+            >
+              O'quvchi Ma'lumotlari
+            </DialogTitle>
+            <DialogDescription>
+              To'liq ma'lumotlarni ko'ring va tahrirlang
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedStudent && (
+            <div className="space-y-6 py-4">
+              {/* Student Avatar and Name */}
+              <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                <Avatar className="h-24 w-24 border-4 border-primary/20">
+                  <AvatarFallback className="text-3xl">{formatInitials(selectedStudent.full_name)}</AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold">{selectedStudent.full_name}</h3>
+                  <div className="mt-2 flex justify-center">
+                    {getStatusBadge(selectedStudent.status)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <Phone className="h-5 w-5 text-primary" />
+                  Aloqa Ma'lumotlari
+                </h4>
+                <div className="grid gap-3 pl-7">
+                  <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                    <span className="text-sm text-muted-foreground">Telefon</span>
+                    <span className="font-medium">{selectedStudent.phone_number}</span>
+                  </div>
+                  {selectedStudent.passport_number && (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                      <span className="text-sm text-muted-foreground">Passport</span>
+                      <span className="font-medium">{selectedStudent.passport_number}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Education Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  Ta'lim Ma'lumotlari
+                </h4>
+                <div className="grid gap-3 pl-7">
+                  <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                    <span className="text-sm text-muted-foreground">Guruh</span>
+                    <span className="font-medium">{selectedStudent.groups?.name || 'Guruh tayinlanmagan'}</span>
+                  </div>
+                  {selectedStudent.groups?.schedule && (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                      <span className="text-sm text-muted-foreground">Jadval</span>
+                      <span className="font-medium">{selectedStudent.groups.schedule}</span>
+                    </div>
+                  )}
+                  {selectedStudent.groups?.teacher_name && (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                      <span className="text-sm text-muted-foreground">O'qituvchi</span>
+                      <span className="font-medium">{selectedStudent.groups.teacher_name}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                    <span className="text-sm text-muted-foreground">Qo'shilgan sana</span>
+                    <span className="font-medium">{formatDate(selectedStudent.enrollment_date)}</span>
+                  </div>
+                  {selectedStudent.updated_at && (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                      <span className="text-sm text-muted-foreground">Oxirgi yangilanish</span>
+                      <span className="font-medium text-xs">{formatDateTime(selectedStudent.updated_at)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  Qo'shimcha Ma'lumotlar
+                </h4>
+                <div className="grid gap-3 pl-7">
+                  <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                    <span className="text-sm text-muted-foreground">ID</span>
+                    <span className="font-mono text-xs">{selectedStudent.id}</span>
+                  </div>
+                  {selectedStudent.groups?.course_type && (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-muted/50">
+                      <span className="text-sm text-muted-foreground">Kurs turi</span>
+                      <span className="font-medium">{selectedStudent.groups.course_type}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setIsViewStudentDialogOpen(false)}
+              className="rounded-2xl"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Yopish
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedStudent) {
+                  // SMS yuborish funksiyasi
+                  alert(`SMS yuborish: ${selectedStudent.phone_number}`)
+                }
+              }}
+              className="rounded-2xl"
+            >
+              <SendHorizontal className="mr-2 h-4 w-4" />
+              SMS Yuborish
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedStudent) {
+                  openEditStudentDialog(selectedStudent)
+                  setIsViewStudentDialogOpen(false)
+                }
+              }}
+              className="rounded-2xl"
+              style={{
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+              }}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Tahrirlash
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedStudent) {
+                  setIsViewStudentDialogOpen(false)
+                  handleDeleteStudent(selectedStudent)
+                }
+              }}
+              className="rounded-2xl"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              O'chirish
             </Button>
           </DialogFooter>
         </DialogContent>
