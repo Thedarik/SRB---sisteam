@@ -4,27 +4,54 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 // GET - Barcha guruhlarni olish
 export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin
+    // Guruhlarni olish
+    const { data: groups, error: groupsError } = await supabaseAdmin
       .from('groups')
       .select('*')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('❌ Guruhlarni yuklashda xatolik:', error)
+    if (groupsError) {
+      console.error('❌ Guruhlarni yuklashda xatolik:', groupsError)
       return NextResponse.json(
         { 
           success: false,
           error: 'Guruhlarni yuklashda xatolik yuz berdi',
-          details: error.message 
+          details: groupsError.message 
         },
         { status: 500 }
       )
     }
 
+    // Har bir guruh uchun faol o'quvchilar sonini hisoblash
+    const groupsWithStudentCount = await Promise.all(
+      (groups || []).map(async (group) => {
+        const { count: activeStudentsCount, error: countError } = await supabaseAdmin
+          .from('students')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', group.id)
+          .eq('status', 'active')
+
+        if (countError) {
+          console.error(`❌ Guruh ${group.id} uchun o'quvchilar sonini hisoblashda xatolik:`, countError)
+          return {
+            ...group,
+            current_students: 0
+          }
+        }
+
+        return {
+          ...group,
+          current_students: activeStudentsCount || 0
+        }
+      })
+    )
+
+    console.log('✅ Guruhlar faol o\'quvchilar soni bilan yuklandi:', groupsWithStudentCount.length)
+
     return NextResponse.json({
       success: true,
-      data: data || []
+      data: groupsWithStudentCount
     })
   } catch (error: any) {
     console.error('❌ Server xatosi:', error)

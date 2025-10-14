@@ -511,7 +511,7 @@ const reportCards: ReportCard[] = [
   { title: "Umumiy Statistika", desc: "Barcha metrikalar va trendlar", icon: <PieChart className="h-6 w-6" />, color: "bg-pink-500" },
 ]
 
-type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance" | "timetable"
+type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance" | "timetable" | "attendance"
 
 // ✅ ASOSIY O'ZGARISH: Bu yerda export qilish kerak
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
@@ -570,6 +570,15 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // View Student Details Dialog State
   const [isViewStudentDialogOpen, setIsViewStudentDialogOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
+
+  // Attendance State
+  const [selectedGroupForAttendance, setSelectedGroupForAttendance] = useState<any>(null)
+  const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [attendanceData, setAttendanceData] = useState<{[key: string]: {[date: string]: 'present' | 'absent' | 'late'}}>({})
+  const [isLoadingAttendance, setIsLoadingAttendance] = useState(false)
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false)
+  const [groupStudents, setGroupStudents] = useState<any[]>([])
+  const [classDates, setClassDates] = useState<string[]>([]) // 12 ta darslik sanalar
 
   // Time Table State
   const [rooms, setRooms] = useState<any[]>([])
@@ -693,6 +702,362 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }
   }
 
+  // ============= ATTENDANCE FUNCTIONS =============
+  
+  // Generate class dates based on group schedule (one month)
+  const generateClassDates = (startDate: string, groupSchedule: string) => {
+    const dates: string[] = []
+    const start = new Date(startDate)
+    
+    console.log('📅 Davomat sanalari generatsiya qilinmoqda:', {
+      startDate,
+      groupSchedule,
+      startDay: start.getDay(),
+      startDayName: ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'][start.getDay()]
+    })
+    
+    // Determine schedule days based on group schedule
+    const scheduleDays = groupSchedule?.toLowerCase() || ''
+    let daysOfWeek: number[] = []
+    
+    // Parse schedule text to get days
+    if (scheduleDays.includes('dush') || scheduleDays.includes('dushanba') || scheduleDays.includes('monday')) daysOfWeek.push(1)
+    if (scheduleDays.includes('sesh') || scheduleDays.includes('seshanba') || scheduleDays.includes('tuesday')) daysOfWeek.push(2)
+    if (scheduleDays.includes('chor') || scheduleDays.includes('chorshanba') || scheduleDays.includes('wednesday')) daysOfWeek.push(3)
+    if (scheduleDays.includes('pay') || scheduleDays.includes('payshanba') || scheduleDays.includes('thursday')) daysOfWeek.push(4)
+    if (scheduleDays.includes('jum') || scheduleDays.includes('juma') || scheduleDays.includes('friday')) daysOfWeek.push(5)
+    if (scheduleDays.includes('shan') || scheduleDays.includes('shanba') || scheduleDays.includes('saturday')) daysOfWeek.push(6)
+    
+    // Yakshanba (0) ni chiqarib tashlash - dars bo'lmaydi
+    daysOfWeek = daysOfWeek.filter(day => day !== 0)
+    
+    // If no specific days found, use Monday and Wednesday as default
+    if (daysOfWeek.length === 0) {
+      daysOfWeek = [1, 3] // Monday and Wednesday
+    }
+    
+    console.log('📅 Dars kunlari:', daysOfWeek.map(d => ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'][d]))
+    
+    let currentDate = new Date(start)
+    let classCount = 0
+    const maxClasses = 12 // One month approximately
+    
+    // Find the next class date from start date
+    while (classCount < maxClasses) {
+      if (daysOfWeek.includes(currentDate.getDay())) {
+        dates.push(currentDate.toISOString().split('T')[0])
+        classCount++
+        console.log(`✅ Dars ${classCount}: ${currentDate.toISOString().split('T')[0]} (${['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'][currentDate.getDay()]})`)
+      }
+      currentDate.setDate(currentDate.getDate() + 1)
+      
+      // Safety check to avoid infinite loop
+      if (currentDate.getTime() - start.getTime() > 60 * 24 * 60 * 60 * 1000) { // 60 days max
+        break
+      }
+    }
+    
+    console.log('📅 Jami generatsiya qilingan sanalar:', dates)
+    return dates
+  }
+  
+  // Load students for selected group
+  const loadGroupStudents = async (groupId: string) => {
+    setIsLoadingAttendance(true)
+    try {
+      // Fetch students in this group
+      const studentsResponse = await fetch(`/api/students?groupId=${groupId}`)
+      const studentsResult = await studentsResponse.json()
+
+      if (studentsResponse.ok && studentsResult.success) {
+        // Faqat faol o'quvchilarni ko'rsatish (inactive o'quvchilarni chiqarib tashlash)
+        const allStudents = studentsResult.data || []
+        const activeStudents = allStudents.filter((student: any) => student.status === 'active')
+        setGroupStudents(activeStudents)
+        
+        console.log('📊 O\'quvchilar statistikasi:', {
+          jami: allStudents.length,
+          faol: activeStudents.length,
+          nofaol: allStudents.length - activeStudents.length
+        })
+
+        // Generate class dates based on group schedule
+        const selectedGroup = groupsData.find(g => g.id === groupId)
+        if (selectedGroup) {
+          // Guruhning boshlanish sanasini ishlatish, attendanceDate emas
+          const groupStartDate = selectedGroup.start_date || attendanceDate
+          const dates = generateClassDates(groupStartDate, selectedGroup.schedule || '')
+          setClassDates(dates)
+        }
+
+        // Fetch existing attendance for all class dates
+        const attendanceMap: {[key: string]: {[date: string]: 'present' | 'absent' | 'late'}} = {}
+        
+        // Initialize attendance map for all students
+        students.forEach((student: any) => {
+          attendanceMap[student.id] = {}
+        })
+
+        // Fetch attendance for each date
+        for (const date of classDates) {
+          const attendanceResponse = await fetch(`/api/attendance?groupId=${groupId}&date=${date}`)
+          const attendanceResult = await attendanceResponse.json()
+
+          if (attendanceResponse.ok && attendanceResult.success) {
+            const existingAttendance = attendanceResult.data || []
+            existingAttendance.forEach((record: any) => {
+              if (attendanceMap[record.student_id]) {
+                attendanceMap[record.student_id][record.date] = record.status
+              }
+            })
+          }
+        }
+        
+        setAttendanceData(attendanceMap as any)
+      } else {
+        alert(`❌ Xatolik: ${studentsResult.error || 'O\'quvchilarni yuklashda xatolik'}`)
+      }
+    } catch (error) {
+      console.error('O\'quvchilarni yuklashda xatolik:', error)
+      alert('❌ Server bilan bog\'lanishda xatolik')
+    } finally {
+      setIsLoadingAttendance(false)
+    }
+  }
+
+  // Handle group selection for attendance
+  const handleSelectGroupForAttendance = (group: any) => {
+    setSelectedGroupForAttendance(group)
+    loadGroupStudents(group.id)
+  }
+
+  // Update attendance for a student on specific date
+  const handleAttendanceChange = (studentId: string, date: string, status: 'present' | 'absent' | 'late') => {
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] || {}),
+        [date]: status
+      }
+    }))
+  }
+
+  // Save attendance for specific date
+  const handleSaveAttendanceForDate = async (date: string) => {
+    if (!selectedGroupForAttendance) {
+      alert('❌ Guruh tanlanmagan!')
+      return
+    }
+
+    setIsSavingAttendance(true)
+    try {
+      const attendances = []
+      
+      // Collect attendance for the specific date
+      for (const studentId in attendanceData) {
+        const studentAttendance = attendanceData[studentId]
+        if (studentAttendance && studentAttendance[date]) {
+          attendances.push({
+            student_id: studentId,
+            group_id: selectedGroupForAttendance.id,
+            date: date,
+            status: studentAttendance[date]
+          })
+        }
+      }
+
+      if (attendances.length === 0) {
+        alert('❌ Bu sanaga davomat belgilanmagan!')
+        setIsSavingAttendance(false)
+        return
+      }
+
+      const response = await fetch('/api/attendance', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ attendances })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        alert(`✅ ${new Date(date).toLocaleDateString('uz-UZ')} sanasidagi davomat saqlandi!`)
+      } else {
+        alert(`❌ Xatolik: ${result.error || 'Davomat saqlashda xatolik'}`)
+      }
+    } catch (error) {
+      console.error('Davomat saqlashda xatolik:', error)
+      alert('❌ Server bilan bog\'lanishda xatolik')
+    } finally {
+      setIsSavingAttendance(false)
+    }
+  }
+
+  // Save all attendance
+  const handleSaveAllAttendance = async () => {
+    if (!selectedGroupForAttendance) {
+      alert('❌ Guruh tanlanmagan!')
+      return
+    }
+
+    setIsSavingAttendance(true)
+    try {
+      const attendances = []
+      
+      // Collect all attendance data
+      for (const studentId in attendanceData) {
+        const studentAttendance = attendanceData[studentId]
+        if (studentAttendance) {
+          for (const date in studentAttendance) {
+            attendances.push({
+              student_id: studentId,
+              group_id: selectedGroupForAttendance.id,
+              date: date,
+              status: studentAttendance[date]
+            })
+          }
+        }
+      }
+
+      if (attendances.length === 0) {
+        alert('❌ Hech qanday davomat belgilanmagan!')
+        setIsSavingAttendance(false)
+        return
+      }
+
+      const response = await fetch('/api/attendance', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ attendances })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        alert('✅ Barcha davomat muvaffaqiyatli saqlandi!')
+      } else {
+        alert(`❌ Xatolik: ${result.error || 'Davomat saqlashda xatolik'}`)
+      }
+    } catch (error) {
+      console.error('Davomat saqlashda xatolik:', error)
+      alert('❌ Server bilan bog\'lanishda xatolik')
+    } finally {
+      setIsSavingAttendance(false)
+    }
+  }
+
+  // When attendance date changes, reload attendance data
+  useEffect(() => {
+    if (selectedGroupForAttendance && activeTab === 'attendance') {
+      loadGroupStudents(selectedGroupForAttendance.id)
+    }
+  }, [attendanceDate])
+
+  // When group changes, generate new class dates
+  useEffect(() => {
+    if (selectedGroupForAttendance) {
+      // Guruhning boshlanish sanasini ishlatish, attendanceDate emas
+      const groupStartDate = selectedGroupForAttendance.start_date || attendanceDate
+      const dates = generateClassDates(groupStartDate, selectedGroupForAttendance.schedule || '')
+      setClassDates(dates)
+    }
+  }, [selectedGroupForAttendance, attendanceDate])
+
+  // ============= END ATTENDANCE FUNCTIONS =============
+
+  // ============= GROUP FUNCTIONS =============
+  
+  // Hafta kunlari nomlari
+  const weekDays = [
+    { value: 0, name: "Yakshanba", short: "Yak" },
+    { value: 1, name: "Dushanba", short: "Dush" },
+    { value: 2, name: "Seshanba", short: "Sesh" },
+    { value: 3, name: "Chorshanba", short: "Chor" },
+    { value: 4, name: "Payshanba", short: "Pay" },
+    { value: 5, name: "Juma", short: "Jum" },
+    { value: 6, name: "Shanba", short: "Shan" }
+  ]
+
+  // Tanlangan kunlarni schedule matniga aylantirish
+  const generateScheduleText = (days: number[]) => {
+    if (days.length === 0) return ""
+    
+    // Yakshanbani chiqarib tashlash (0 - Yakshanba)
+    const filteredDays = days.filter(day => day !== 0)
+    
+    if (filteredDays.length === 0) return ""
+    
+    const dayNames = filteredDays.map(day => weekDays[day].short).join("-")
+    return dayNames
+  }
+
+  // Kun tanlashni boshqarish
+  const handleDayToggle = (dayValue: number) => {
+    setSelectedDays(prev => {
+      const newDays = prev.includes(dayValue) 
+        ? prev.filter(d => d !== dayValue)
+        : [...prev, dayValue]
+      
+      // Schedule matnini yangilash
+      const scheduleText = generateScheduleText(newDays)
+      setNewGroup(prev => ({ ...prev, schedule: scheduleText }))
+      
+      return newDays
+    })
+  }
+
+  // Guruh yaratishda kunlarni tozalash
+  const resetGroupForm = () => {
+    setNewGroup({
+      name: "",
+      course_type: "",
+      schedule: "",
+      room: "",
+      time_slot: "",
+      start_date: "",
+      end_date: "",
+      teacher_name: "",
+      max_students: 30
+    })
+    setSelectedDays([])
+    setIsAddingGroup(false)
+  }
+
+  // Guruhni o'chirish
+  const handleDeleteGroup = async (groupId: string, groupName: string) => {
+    if (!confirm(`"${groupName}" guruhini o'chirmoqchimisiz?\n\nBu amalni bekor qilib bo'lmaydi!`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/groups/${groupId}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        alert(`❌ Xatolik: ${result.error || "Noma'lum xatolik yuz berdi!"}`)
+        return
+      }
+
+      // Success
+      alert("✅ Guruh muvaffaqiyatli o'chirildi!")
+      
+      // Refresh groups list
+      fetchGroupsForCourses()
+    } catch (error) {
+      console.error('Guruhni o\'chirishda xatolik:', error)
+      alert('❌ Server bilan bog\'lanishda xatolik')
+    }
+  }
+
+  // ============= END GROUP FUNCTIONS =============
+
   // Add Group State (inline form, not dialog)
   const [isAddingGroup, setIsAddingGroup] = useState(false)
   const [newGroup, setNewGroup] = useState({
@@ -706,6 +1071,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     teacher_name: "",
     max_students: 30
   })
+  const [selectedDays, setSelectedDays] = useState<number[]>([]) // Hafta kunlari (0-6)
 
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -797,9 +1163,11 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const result = await response.json()
       
       if (result.success) {
-        setGroupsData(result.data || [])
-        setAvailableGroups(result.data || [])  // Dropdown uchun ham yangilash
-        console.log('✅ Guruhlar yuklandi:', result.data.length)
+        // Faqat faol guruhlarni ko'rsatish (inactive guruhlarni chiqarib tashlash)
+        const activeGroups = (result.data || []).filter((group: any) => group.status === 'active')
+        setGroupsData(activeGroups)
+        setAvailableGroups(activeGroups)  // Dropdown uchun ham yangilash
+        console.log('✅ Faol guruhlar yuklandi:', activeGroups.length)
       } else {
         setGroupsError(result.error || 'Ma\'lumotlarni yuklashda xatolik')
         console.error('❌ API xatosi:', result.error)
@@ -859,8 +1227,16 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const result = await response.json()
       
       if (result.success) {
-        setStudentsData(result.data || [])
-        console.log('✅ O\'quvchilar yuklandi:', result.data.length)
+        // Faqat faol o'quvchilarni ko'rsatish (nofaol o'quvchilarni chiqarib tashlash)
+        const allStudents = result.data || []
+        const activeStudents = allStudents.filter((student: any) => student.status === 'active')
+        setStudentsData(activeStudents)
+        
+        console.log('✅ O\'quvchilar yuklandi:', {
+          jami: allStudents.length,
+          faol: activeStudents.length,
+          nofaol: allStudents.length - activeStudents.length
+        })
       } else {
         setStudentsError(result.error || 'Ma\'lumotlarni yuklashda xatolik')
         console.error('❌ API xatosi:', result.error)
@@ -1068,6 +1444,16 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       return
     }
 
+    if (selectedDays.length === 0) {
+      alert("❌ Kamida bitta dars kunini tanlang!")
+      return
+    }
+
+    if (!newGroup.start_date) {
+      alert("❌ Boshlanish sanasini kiriting!")
+      return
+    }
+
     try {
       const response = await fetch('/api/groups', {
         method: 'POST',
@@ -1098,18 +1484,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       console.log("✅ Yangi guruh qo'shildi:", result.data)
 
       // Reset form
-      setNewGroup({
-        name: "",
-        course_type: "",
-        schedule: "",
-        room: "",
-        time_slot: "",
-        start_date: "",
-        end_date: "",
-        teacher_name: "",
-        max_students: 30
-      })
-      setIsAddingGroup(false)
+      resetGroupForm()
       
       // Success message
       alert("✅ Guruh muvaffaqiyatli qo'shildi!")
@@ -1256,8 +1631,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     {
       title: "Davomad",
       icon: <CheckSquare />,
-      isActive: activeTab === "assignments",
-      onClick: () => setActiveTab("assignments")
+      isActive: activeTab === "attendance",
+      onClick: () => setActiveTab("attendance")
     },
     {
       title: "Hisobotlar",
@@ -2218,19 +2593,35 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             </Select>
                           </div>
 
-                          {/* Schedule (auto-generated or manual) */}
+                          {/* Week Days Selection */}
                           <div className="md:col-span-2 space-y-2">
-                            <Label htmlFor="newSchedule" className="flex items-center gap-2 text-base">
+                            <Label className="flex items-center gap-2 text-base">
                               <CalendarIcon className="h-5 w-5 text-primary" />
-                              Kunlar (ixtiyoriy)
+                              Dars Kunlari
                             </Label>
-                            <Input
-                              id="newSchedule"
-                              placeholder="Masalan: Dush-Chor-Juma"
-                              value={newGroup.schedule}
-                              onChange={(e) => setNewGroup({ ...newGroup, schedule: e.target.value })}
-                              className="rounded-2xl h-12"
-                            />
+                            <div className="grid grid-cols-7 gap-2">
+                              {weekDays.map((day) => (
+                                <button
+                                  key={day.value}
+                                  type="button"
+                                  onClick={() => handleDayToggle(day.value)}
+                                  className={cn(
+                                    "p-3 rounded-xl border-2 transition-all duration-200 text-center",
+                                    selectedDays.includes(day.value)
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-background border-gray-200 hover:border-primary/50",
+                                    day.value === 0 && "opacity-50" // Yakshanba ochiq
+                                  )}
+                                  disabled={day.value === 0} // Yakshanbani tanlash mumkin emas
+                                  title={day.value === 0 ? "Yakshanba - dars bo'lmaydi" : day.name}
+                                >
+                                  <div className="text-xs font-medium">{day.short}</div>
+                                </button>
+                              ))}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Tanlangan kunlar: {selectedDays.length > 0 ? selectedDays.map(d => weekDays[d].name).join(", ") : "Kunlar tanlanmagan"}
+                            </div>
                           </div>
 
                           {/* Teacher Name */}
@@ -2283,20 +2674,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <div className="flex gap-3 pt-4 border-t">
                           <Button
                             variant="outline"
-                            onClick={() => {
-                              setIsAddingGroup(false)
-                              setNewGroup({
-                                name: "",
-                                course_type: "",
-                                schedule: "",
-                                room: "",
-                                time_slot: "",
-                                start_date: "",
-                                end_date: "",
-                                teacher_name: "",
-                                max_students: 30
-                              })
-                            }}
+                            onClick={resetGroupForm}
                             className="flex-1 rounded-2xl h-12"
                           >
                             <X className="mr-2 h-4 w-4" />
@@ -2449,6 +2827,17 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Tahrirlash
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            className="rounded-2xl px-3"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteGroup(group.id, group.name)
+                            }}
+                            title="Guruhni o'chirish"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </CardFooter>
                       </Card>
@@ -2994,190 +3383,355 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
           )}
 
-          {activeTab === "assignments" && (
+          {activeTab === "attendance" && (
             <div className="space-y-6">
               {/* Attendance Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold">Davomad Boshqaruvi</h2>
-                  <p className="text-muted-foreground">O'quvchilar davomadini kuzatib boring va boshqaring</p>
+                  <p className="text-muted-foreground">Guruhni tanlang va o'quvchilar davomadini belgilang</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="rounded-2xl">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Bugun
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="rounded-2xl w-auto"
+                  />
+                  {selectedGroupForAttendance && (
+                    <Button 
+                      onClick={() => setSelectedGroupForAttendance(null)}
+                      variant="outline" 
+                      className="rounded-2xl"
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      Guruhni O'zgartirish
                   </Button>
-                  <Button className="rounded-2xl">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Davomatni Belgilash
-                  </Button>
+                  )}
                 </div>
               </div>
 
-              {/* Attendance Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {[
-                  { title: "Bugungi Davomad", value: "92%", icon: <CheckCircle className="h-5 w-5" />, color: "text-green-600", bgColor: "bg-green-50" },
-                  { title: "Jami O'quvchilar", value: "247", icon: <Users className="h-5 w-5" />, color: "text-blue-600", bgColor: "bg-blue-50" },
-                  { title: "Kelganlar", value: "227", icon: <UserCheck className="h-5 w-5" />, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-                  { title: "Kelmaganlar", value: "20", icon: <XCircle className="h-5 w-5" />, color: "text-red-600", bgColor: "bg-red-50" },
-                ].map((stat, index) => (
+              {/* Main Content - Groups or Students */}
+              {!selectedGroupForAttendance ? (
+                /* Show Groups List */
+                <div>
+                  <Card className="rounded-3xl border-2">
+                    <CardHeader>
+                      <CardTitle className="text-xl">Guruhni Tanlang</CardTitle>
+                      <CardDescription>Davomat belgilash uchun guruhni tanlang</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {isLoadingGroups ? (
+                        <div className="text-center py-12">
+                          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">Guruhlar yuklanmoqda...</p>
+                        </div>
+                      ) : groupsData.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">Hozircha guruhlar yo'q</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {groupsData.map((group) => (
                   <motion.div
-                    key={index}
+                              key={group.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                              whileHover={{ scale: 1.02 }}
+                              className="cursor-pointer"
+                              onClick={() => handleSelectGroupForAttendance(group)}
                   >
-                    <Card className="rounded-3xl border-2">
+                              <Card className="rounded-2xl border-2 hover:border-primary transition-all">
                       <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className={cn("p-3 rounded-2xl", stat.bgColor, stat.color)}>
-                            {stat.icon}
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                      <h3 className="font-semibold text-lg mb-1">{group.name}</h3>
+                                      <p className="text-sm text-muted-foreground">{group.course_type}</p>
                           </div>
+                                    <Badge variant="secondary" className="rounded-xl">
+                                      {group.current_students || 0} o'quvchi
+                                    </Badge>
                         </div>
-                        <h3 className="text-3xl font-bold mb-1">{stat.value}</h3>
-                        <p className="text-sm text-muted-foreground">{stat.title}</p>
+                                  <div className="space-y-2 text-sm text-muted-foreground">
+                                    {group.schedule && (
+                                      <p className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4" />
+                                        {group.schedule}
+                                      </p>
+                                    )}
+                                    {group.time_slot && (
+                                      <p className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4" />
+                                        {group.time_slot}
+                                      </p>
+                                    )}
+                                    {group.room && (
+                                      <p className="flex items-center gap-2">
+                                        <Building className="h-4 w-4" />
+                                        {group.room}
+                                      </p>
+                                    )}
+                                  </div>
                       </CardContent>
                     </Card>
                   </motion.div>
                 ))}
               </div>
-
-              {/* Today's Attendance and Weekly Stats */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Today's Attendance */}
-                <Card className="rounded-3xl border-2">
-                  <CardHeader>
-                    <CardTitle className="text-xl">Bugungi Davomad</CardTitle>
-                    <CardDescription>Dars bo'yicha ishtirok etish</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {[
-                        { course: "Frontend Development", time: "09:00", present: 25, total: 30, status: "active" },
-                        { course: "Digital Marketing", time: "11:00", present: 18, total: 20, status: "active" },
-                        { course: "Graphic Design", time: "14:00", present: 12, total: 15, status: "upcoming" },
-                        { course: "Backend Development", time: "16:00", present: 0, total: 25, status: "upcoming" },
-                      ].map((lesson, index) => (
-                        <div key={index} className="p-4 rounded-2xl border space-y-3">
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                /* Show Students List for Attendance */
+                <div className="space-y-6">
+                  {/* Selected Group Info */}
+                  <Card className="rounded-3xl border-2 bg-gradient-to-r from-blue-50 to-purple-50">
+                    <CardContent className="p-6">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h4 className="font-medium">{lesson.course}</h4>
-                              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                                <Clock3 className="h-3 w-3" />
-                                {lesson.time}
-                              </p>
+                          <h3 className="font-semibold text-xl mb-1">{selectedGroupForAttendance.name}</h3>
+                          <p className="text-sm text-muted-foreground">{selectedGroupForAttendance.course_type}</p>
                             </div>
-                            <Badge variant={lesson.status === "active" ? "default" : "secondary"} className="rounded-xl">
-                              {lesson.status === "active" ? "Davom etmoqda" : "Kutilmoqda"}
-                            </Badge>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-blue-600">{groupStudents.length}</p>
+                          <p className="text-sm text-muted-foreground">O'quvchi</p>
                           </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Ishtirok</span>
-                              <span className="font-medium">{lesson.present}/{lesson.total}</span>
-                            </div>
-                            <Progress value={(lesson.present / lesson.total) * 100} className="h-2" />
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </CardContent>
-                  <CardFooter>
-                    <Button variant="secondary" className="w-full rounded-2xl">
-                      <Eye className="mr-2 h-4 w-4" />
-                      Batafsil Ko'rish
-                    </Button>
-                  </CardFooter>
                 </Card>
 
-                {/* Weekly Attendance Stats */}
-                <Card className="rounded-3xl border-2">
-                  <CardHeader>
-                    <CardTitle className="text-xl">Haftalik Davomad</CardTitle>
-                    <CardDescription>Oxirgi 7 kunlik statistika</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {[
-                      { day: "Dushanba", percentage: 95, present: 235, total: 247 },
-                      { day: "Seshanba", percentage: 88, present: 217, total: 247 },
-                      { day: "Chorshanba", percentage: 92, present: 227, total: 247 },
-                      { day: "Payshanba", percentage: 90, present: 222, total: 247 },
-                      { day: "Juma", percentage: 85, present: 210, total: 247 },
-                    ].map((day, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium">{day.day}</span>
-                          <span className="text-muted-foreground">
-                            {day.present}/{day.total} ({day.percentage}%)
-                          </span>
-                        </div>
-                        <Progress value={day.percentage} className="h-2" />
-                      </div>
-                    ))}
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-3">
-                    <div className="w-full p-4 rounded-2xl bg-blue-50 border border-blue-200">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-blue-700">Haftalik o'rtacha</span>
-                        <span className="text-2xl font-bold text-blue-700">90%</span>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="w-full rounded-2xl">
-                      <DownloadIcon className="mr-2 h-4 w-4" />
-                      Davomad Hisoboti
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-
-              {/* Students with Low Attendance */}
+                  {/* Attendance Table */}
               <Card className="rounded-3xl border-2">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-xl">Past Davomad Ko'rsatkichlari</CardTitle>
-                      <CardDescription>E'tibor talab qilayotgan o'quvchilar</CardDescription>
+                          <CardTitle className="text-xl">Davomat Jadvali</CardTitle>
+                          <CardDescription>
+                            12 ta darslik sanalari bo'yicha davomat
+                          </CardDescription>
                     </div>
-                    <Button variant="outline" className="rounded-2xl">
-                      <SendHorizontal className="mr-2 h-4 w-4" />
-                      SMS Yuborish
+                        <Button 
+                          onClick={handleSaveAllAttendance}
+                          disabled={isSavingAttendance}
+                          className="rounded-2xl"
+                        >
+                          {isSavingAttendance ? (
+                            <>
+                              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                              Saqlanmoqda...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-2 h-4 w-4" />
+                              Barchasini Saqlash
+                            </>
+                          )}
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[
-                      { name: "Rakhmonov Bekzod", course: "Frontend Development", attendance: 65, absent: 7, avatar: "/placeholder.svg" },
-                      { name: "Tursunov Sherzod", course: "Digital Marketing", attendance: 70, absent: 6, avatar: "/placeholder.svg" },
-                      { name: "Aliyeva Nigora", course: "Graphic Design", attendance: 72, absent: 5, avatar: "/placeholder.svg" },
-                    ].map((student, index) => (
-                      <div key={index} className="p-4 rounded-2xl border space-y-3 hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 border-2 border-red-200">
-                            <AvatarFallback>{student.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{student.name}</p>
-                            <p className="text-xs text-muted-foreground">{student.course}</p>
+                      {isLoadingAttendance ? (
+                        <div className="text-center py-12">
+                          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">Davomat jadvali yuklanmoqda...</p>
                           </div>
+                      ) : groupStudents.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">Bu guruhda hozircha o'quvchilar yo'q</p>
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Davomad</span>
-                            <span className="font-medium text-red-600">{student.attendance}%</span>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b-2">
+                                <th className="text-left p-3 font-semibold sticky left-0 bg-background border-r-2">
+                                  №
+                                </th>
+                                <th className="text-left p-3 font-semibold sticky left-12 bg-background border-r-2 min-w-[200px]">
+                                  I.F.SH
+                                </th>
+                                {classDates.map((date, index) => (
+                                  <th key={date} className="text-center p-2 font-semibold min-w-[80px]">
+                                    <div className="text-xs">
+                                      {new Date(date).toLocaleDateString('uz-UZ', { 
+                                        day: '2-digit',
+                                        month: '2-digit'
+                                      })}
                           </div>
-                          <Progress value={student.attendance} className="h-2" />
-                          <p className="text-xs text-red-600 flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            {student.absent} kun kelmadi
-                          </p>
+                                    <div className="text-xs text-muted-foreground">
+                                      {new Date(date).toLocaleDateString('uz-UZ', { 
+                                        weekday: 'short'
+                                      })}
                         </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {groupStudents.map((student, studentIndex) => (
+                                <tr key={student.id} className="border-b hover:bg-muted/30 transition-colors">
+                                  <td className="p-3 font-medium sticky left-0 bg-background border-r-2">
+                                    {studentIndex + 1}
+                                  </td>
+                                  <td className="p-3 sticky left-12 bg-background border-r-2 min-w-[200px]">
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarFallback className="text-xs">
+                                          {student.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="min-w-0">
+                                        <p className="font-medium text-sm truncate">{student.full_name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{student.phone_number}</p>
                       </div>
-                    ))}
+                                    </div>
+                                  </td>
+                                  {classDates.map((date) => {
+                                    const today = new Date().toISOString().split('T')[0]
+                                    const isPastOrToday = date <= today  // Bugungi kun ham qo'shildi
+                                    const currentStatus = attendanceData[student.id]?.[date]
+                                    
+                                    return (
+                                      <td key={date} className="p-2 text-center">
+                                        {isPastOrToday ? (
+                                          <button
+                                            onClick={() => {
+                                              let newStatus: 'present' | 'absent' | 'late' = 'present'
+                                              
+                                              if (currentStatus === 'present') {
+                                                newStatus = 'absent'
+                                              } else if (currentStatus === 'absent') {
+                                                newStatus = 'late'
+                                              } else {
+                                                newStatus = 'present'
+                                              }
+                                              
+                                              handleAttendanceChange(student.id, date, newStatus)
+                                            }}
+                                            className={cn(
+                                              "w-8 h-8 rounded-lg border-2 transition-all duration-200 hover:scale-110 cursor-pointer",
+                                              currentStatus === 'present' 
+                                                ? "bg-green-500 border-green-600 hover:bg-green-600" 
+                                                : currentStatus === 'late'
+                                                ? "bg-yellow-500 border-yellow-600 hover:bg-yellow-600"
+                                                : currentStatus === 'absent'
+                                                ? "bg-red-500 border-red-600 hover:bg-red-600"
+                                                : "bg-gray-200 border-gray-300 hover:bg-gray-300"
+                                            )}
+                                            title={`${student.full_name} - ${new Date(date).toLocaleDateString('uz-UZ')} - ${currentStatus || 'Belgilanmagan'}`}
+                                          >
+                                            {currentStatus === 'present' && (
+                                              <CheckCircle className="w-4 h-4 text-white mx-auto" />
+                                            )}
+                                            {currentStatus === 'late' && (
+                                              <Clock className="w-4 h-4 text-white mx-auto" />
+                                            )}
+                                            {currentStatus === 'absent' && (
+                                              <XCircle className="w-4 h-4 text-white mx-auto" />
+                                            )}
+                                          </button>
+                                        ) : (
+                                          <div
+                                            className={cn(
+                                              "w-8 h-8 rounded-lg border-2 flex items-center justify-center",
+                                              currentStatus === 'present' 
+                                                ? "bg-green-500 border-green-600" 
+                                                : currentStatus === 'late'
+                                                ? "bg-yellow-500 border-yellow-600"
+                                                : currentStatus === 'absent'
+                                                ? "bg-red-500 border-red-600"
+                                                : "bg-gray-100 border-gray-200"
+                                            )}
+                                            title={`${student.full_name} - ${new Date(date).toLocaleDateString('uz-UZ')} - Kelajakdagi kun (${currentStatus || 'Belgilanmagan'})`}
+                                          >
+                                            {currentStatus === 'present' && (
+                                              <CheckCircle className="w-4 h-4 text-white mx-auto" />
+                                            )}
+                                            {currentStatus === 'late' && (
+                                              <Clock className="w-4 h-4 text-white mx-auto" />
+                                            )}
+                                            {currentStatus === 'absent' && (
+                                              <XCircle className="w-4 h-4 text-white mx-auto" />
+                                            )}
+                                          </div>
+                                        )}
+                                      </td>
+                                    )
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                   </div>
+                      )}
                 </CardContent>
+                    {groupStudents.length > 0 && (
+                      <CardFooter className="flex justify-between items-center">
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-green-500 rounded"></div>
+                              <span>Keldi</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+                              <span>Kech qoldi</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-red-500 rounded"></div>
+                              <span>Kelmadi</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-gray-200 rounded"></div>
+                              <span>Belgilanmagan</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
+                              <span>Kelajakdagi kun</span>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs text-orange-600">
+                            ℹ️ O'tgan va bugungi kunlarni belgilash mumkin
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => {
+                              const today = new Date().toISOString().split('T')[0]
+                              const allPresent: {[key: string]: {[date: string]: 'present'}} = {}
+                              groupStudents.forEach(student => {
+                                allPresent[student.id] = {}
+                                classDates.forEach(date => {
+                                  // O'tgan kunlar va bugungi kun uchun belgilash
+                                  if (date <= today) {
+                                    allPresent[student.id][date] = 'present'
+                                  }
+                                })
+                              })
+                              setAttendanceData(allPresent as any)
+                            }}
+                          >
+                            O'tgan va Bugungi Kunlar - Barchasi Keldi
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => setAttendanceData({})}
+                          >
+                            Tozalash
+                          </Button>
+                        </div>
+                      </CardFooter>
+                    )}
               </Card>
+                </div>
+              )}
             </div>
           )}
 

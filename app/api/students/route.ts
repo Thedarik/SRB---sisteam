@@ -211,31 +211,36 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ O\'quvchi muvaffaqiyatli qo\'shildi:', newStudent.id)
 
-    // ✅ 5. GURUHNING CURRENT_STUDENTS SONINI OSHIRISH
+    // ✅ 5. GURUHNING CURRENT_STUDENTS SONINI OSHIRISH (faqat faol o'quvchilar uchun)
     try {
-      const { data: currentGroup, error: groupFetchError } = await supabaseAdmin
-        .from('groups')
-        .select('current_students')
-        .eq('id', body.group_id)
-        .single()
-
-      if (!groupFetchError && currentGroup) {
-        const newCount = (currentGroup.current_students || 0) + 1
-        
-        const { error: updateError } = await supabaseAdmin
+      // Faqat faol o'quvchi qo'shilganda guruh sonini oshirish
+      if (newStudent.status === 'active') {
+        const { data: currentGroup, error: groupFetchError } = await supabaseAdmin
           .from('groups')
-          .update({ 
-            current_students: newCount,
-            updated_at: new Date().toISOString()
-          })
+          .select('current_students')
           .eq('id', body.group_id)
+          .single()
 
-        if (updateError) {
-          console.error('⚠️ Guruh sonini yangilashda xatolik:', updateError.message)
-          // Bu xatolik critical emas, o'quvchi qo'shildi
-        } else {
-          console.log(`✅ Guruh o'quvchilar soni yangilandi: ${newCount}`)
+        if (!groupFetchError && currentGroup) {
+          const newCount = (currentGroup.current_students || 0) + 1
+          
+          const { error: updateError } = await supabaseAdmin
+            .from('groups')
+            .update({ 
+              current_students: newCount,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', body.group_id)
+
+          if (updateError) {
+            console.error('⚠️ Guruh sonini yangilashda xatolik:', updateError.message)
+            // Bu xatolik critical emas, o'quvchi qo'shildi
+          } else {
+            console.log(`✅ Guruh o'quvchilar soni yangilandi (faol qo'shildi): ${newCount}`)
+          }
         }
+      } else {
+        console.log('ℹ️ Nofaol o\'quvchi qo\'shildi, guruh soni o\'zgarmadi')
       }
     } catch (error) {
       console.error('⚠️ Guruh yangilashda xatolik:', error)

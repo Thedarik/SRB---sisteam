@@ -4,9 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 // GET - Bitta o'quvchini ID bo'yicha olish
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { data, error } = await supabaseAdmin
       .from('students')
       .select(`
@@ -18,7 +19,7 @@ export async function GET(
           schedule
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -53,12 +54,13 @@ export async function GET(
 // PUT - O'quvchini yangilash
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
-    console.log('📝 O\'quvchi yangilanmoqda:', params.id, body)
+    console.log('📝 O\'quvchi yangilanmoqda:', id, body)
     
     // ✅ 1. VALIDATSIYA
     if (!body.full_name?.trim()) {
@@ -81,11 +83,11 @@ export async function PUT(
       )
     }
 
-    // ✅ 2. O'QUVCHI MAVJUDLIGINI TEKSHIRISH VA ESKI GURUHNI OLISH
+    // ✅ 2. O'QUVCHI MAVJUDLIGINI TEKSHIRISH VA ESKI GURUH VA STATUS NI OLISH
     const { data: existingStudent, error: checkError } = await supabaseAdmin
       .from('students')
-      .select('id, group_id')
-      .eq('id', params.id)
+      .select('id, group_id, status')
+      .eq('id', id)
       .single()
 
     if (checkError || !existingStudent) {
@@ -99,6 +101,7 @@ export async function PUT(
     }
 
     const oldGroupId = existingStudent.group_id
+    const oldStatus = existingStudent.status
 
     // ✅ 3. YANGI GURUH MAVJUDLIGINI TEKSHIRISH
     if (body.group_id) {
@@ -132,7 +135,7 @@ export async function PUT(
     const { data: updatedStudent, error: updateError } = await supabaseAdmin
       .from('students')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         groups:group_id (
@@ -167,12 +170,23 @@ export async function PUT(
       )
     }
 
-    // ✅ 5. GURUH O'ZGARGANDA STUDENT SONLARINI YANGILASH
-    if (oldGroupId !== body.group_id) {
-      console.log('📊 Guruh o\'zgardi, sonlarni yangilaymiz...')
+    // ✅ 5. GURUH O'ZGARGANDA VA STATUS O'ZGARGANDA STUDENT SONLARINI YANGILASH
+    const groupChanged = oldGroupId !== body.group_id
+    const statusChanged = oldStatus !== body.status
+    const newStatus = body.status || 'active'
+    
+    if (groupChanged || statusChanged) {
+      console.log('📊 Guruh yoki status o\'zgardi, sonlarni yangilaymiz...', {
+        groupChanged,
+        statusChanged,
+        oldGroupId,
+        newGroupId: body.group_id,
+        oldStatus,
+        newStatus
+      })
       
-      // Eski guruhdan -1
-      if (oldGroupId) {
+      // VARIANT 1: Guruh o'zgargan (va eski status faol edi)
+      if (groupChanged && oldStatus === 'active' && oldGroupId) {
         try {
           const { data: oldGroup } = await supabaseAdmin
             .from('groups')
@@ -186,15 +200,15 @@ export async function PUT(
               .from('groups')
               .update({ current_students: newCount })
               .eq('id', oldGroupId)
-            console.log(`✅ Eski guruh: ${oldGroupId} → ${newCount}`)
+            console.log(`✅ Eski guruhdan o'chirildi: ${oldGroupId} → ${newCount}`)
           }
         } catch (error) {
           console.error('⚠️ Eski guruhni yangilashda xatolik:', error)
         }
       }
 
-      // Yangi guruhga +1
-      if (body.group_id) {
+      // VARIANT 2: Guruh o'zgargan (va yangi status faol)
+      if (groupChanged && newStatus === 'active' && body.group_id) {
         try {
           const { data: newGroup } = await supabaseAdmin
             .from('groups')
@@ -208,10 +222,57 @@ export async function PUT(
               .from('groups')
               .update({ current_students: newCount })
               .eq('id', body.group_id)
-            console.log(`✅ Yangi guruh: ${body.group_id} → ${newCount}`)
+            console.log(`✅ Yangi guruhga qo'shildi: ${body.group_id} → ${newCount}`)
           }
         } catch (error) {
           console.error('⚠️ Yangi guruhni yangilashda xatolik:', error)
+        }
+      }
+      
+      // VARIANT 3: Faqat status o'zgargan (guruh o'zgarmagan)
+      if (!groupChanged && statusChanged && body.group_id) {
+        // Status: active → inactive
+        if (oldStatus === 'active' && newStatus === 'inactive') {
+          try {
+            const { data: group } = await supabaseAdmin
+              .from('groups')
+              .select('current_students')
+              .eq('id', body.group_id)
+              .single()
+
+            if (group) {
+              const newCount = Math.max(0, (group.current_students || 1) - 1)
+              await supabaseAdmin
+                .from('groups')
+                .update({ current_students: newCount })
+                .eq('id', body.group_id)
+              console.log(`✅ Status nofaol bo'ldi: ${body.group_id} → ${newCount}`)
+            }
+          } catch (error) {
+            console.error('⚠️ Guruhni yangilashda xatolik:', error)
+          }
+        }
+        
+        // Status: inactive → active
+        if (oldStatus === 'inactive' && newStatus === 'active') {
+          try {
+            const { data: group } = await supabaseAdmin
+              .from('groups')
+              .select('current_students')
+              .eq('id', body.group_id)
+              .single()
+
+            if (group) {
+              const newCount = (group.current_students || 0) + 1
+              await supabaseAdmin
+                .from('groups')
+                .update({ current_students: newCount })
+                .eq('id', body.group_id)
+              console.log(`✅ Status faol bo'ldi: ${body.group_id} → ${newCount}`)
+            }
+          } catch (error) {
+            console.error('⚠️ Guruhni yangilashda xatolik:', error)
+          }
         }
       }
     }
@@ -240,16 +301,17 @@ export async function PUT(
 // DELETE - O'quvchini o'chirish
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🗑️ O\'quvchi o\'chirilmoqda:', params.id)
+    const { id } = await params
+    console.log('🗑️ O\'quvchi o\'chirilmoqda:', id)
     
     // ✅ 1. O'QUVCHINI OLISH (group_id ni bilish uchun)
     const { data: student, error: fetchError } = await supabaseAdmin
       .from('students')
       .select('id, group_id, full_name')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError || !student) {
@@ -268,7 +330,7 @@ export async function DELETE(
     const { error: deleteError } = await supabaseAdmin
       .from('students')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (deleteError) {
       console.error('❌ DELETE xatosi:', deleteError)
