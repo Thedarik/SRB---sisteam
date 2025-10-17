@@ -1125,6 +1125,12 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // Appearance Tab State (Yangi: Tab navigatsiya uchun)
   const [appearanceTab, setAppearanceTab] = useState<"editor" | "presets" | "saved">("editor")
 
+  // Hafta kunini o'zbek tilida ko'rsatish funksiyasi
+  const getWeekdayName = (date: Date) => {
+    const weekdays = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
+    return weekdays[date.getDay()]
+  }
+
   // Client-side initialization
   useEffect(() => {
     setIsClient(true)
@@ -2021,7 +2027,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
             <div className="text-xs text-muted-foreground mb-3">
               {isClient && currentTime ? (
-                `${currentTime.toLocaleTimeString()} • ${currentTime.toLocaleDateString()}`
+                `${currentTime.toLocaleTimeString()} • ${currentTime.toLocaleDateString()} • ${getWeekdayName(currentTime)}`
               ) : (
                 '...'
               )}
