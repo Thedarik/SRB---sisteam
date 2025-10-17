@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import Lottie from "lottie-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -574,7 +575,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // Attendance State
   const [selectedGroupForAttendance, setSelectedGroupForAttendance] = useState<any>(null)
   const [attendanceDate, setAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0])
-  const [attendanceData, setAttendanceData] = useState<{[key: string]: {[date: string]: 'present' | 'absent' | 'late'}}>({})
+  const [attendanceData, setAttendanceData] = useState<{ [key: string]: { [date: string]: 'present' | 'absent' | 'late' } }>({})
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false)
   const [isSavingAttendance, setIsSavingAttendance] = useState(false)
   const [groupStudents, setGroupStudents] = useState<any[]>([])
@@ -799,7 +800,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         }
 
         // Fetch existing attendance for all class dates
-        const attendanceMap: {[key: string]: {[date: string]: 'present' | 'absent' | 'late'}} = {}
+        const attendanceMap: { [key: string]: { [date: string]: 'present' | 'absent' | 'late' } } = {}
         
         // Initialize attendance map for all students
         students.forEach((student: any) => {
@@ -1969,7 +1970,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       description: "Yuklanmoqda...",
       target: 15,
       percentage: 0
-    },
+    }
   ]
 
   return (
@@ -2166,7 +2167,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               >
                 <div className="relative z-10">
                   <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                    <div className="space-y-4">
+                    <div className="space-y-4 flex-1">
                       <div className="flex items-center gap-3">
                         <Badge className="bg-white/20 text-white hover:bg-white/30 rounded-xl">
                           <GraduationCap className="h-3 w-3 mr-1" />
@@ -2201,6 +2202,29 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         </Button>
                       </div>
                     </div>
+                    
+                    {/* Lottie Animation - O'ng tomonga */}
+                    <motion.div 
+                      className="hidden md:block md:w-48 lg:w-56"
+                      initial={{ opacity: 0, scale: 0.8, x: 50 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
+                    >
+                      <Lottie
+                        animationData={require('../../assets/lottie_animatsiya.json')}
+                        loop={true}
+                        autoplay={true}
+                        style={{ 
+                          width: '100%', 
+                          height: 'auto',
+                          maxHeight: '200px',
+                          filter: 'brightness(0) invert(1) drop-shadow(0 5px 15px rgba(0,0,0,0.2))'
+                        }}
+                        rendererSettings={{
+                          preserveAspectRatio: 'xMidYMid slice'
+                        }}
+                      />
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>
@@ -3711,7 +3735,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             className="rounded-xl"
                             onClick={() => {
                               const today = new Date().toISOString().split('T')[0]
-                              const allPresent: {[key: string]: {[date: string]: 'present'}} = {}
+                              const allPresent: { [key: string]: { [date: string]: 'present' } } = {}
                               groupStudents.forEach(student => {
                                 allPresent[student.id] = {}
                                 classDates.forEach(date => {
@@ -3823,7 +3847,34 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                   <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
                   <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
                   
-                  <div className="relative z-10 text-center space-y-6">
+                  <div className="relative z-10">
+                    {/* Lottie Animation - Background holatda */}
+                    <motion.div 
+                      className="absolute top-20 right-2"
+                      initial={{ opacity: 0, scale: 0.8, x: 50 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                    >
+                      <div className="w-96 h-96">
+                        <Lottie
+                          animationData={require('../../assets/lottie_animatsiya.json')}
+                          loop={true}
+                          autoplay={true}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%',
+                            filter: 'brightness(0) invert(1) drop-shadow(0 5px 15px rgba(0,0,0,0.3))',
+                            opacity: 0.7
+                          }}
+                          rendererSettings={{
+                            preserveAspectRatio: 'xMidYMid slice'
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+
+                    {/* Text Content */}
+                    <div className="text-center space-y-6">
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-md border border-white/30">
                       <Eye className="h-4 w-4" />
                       <span className="text-sm font-medium">Live Preview</span>
@@ -3866,6 +3917,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         <p className="text-xs text-white/70 mb-1">Accent</p>
                         <p className="font-mono text-sm font-semibold">{themeColors.accent}</p>
                       </motion.div>
+                    </div>
+
                     </div>
                   </div>
                 </div>
@@ -4028,6 +4081,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           />
                         </motion.div>
                       )}
+
                     </CardContent>
                   </Card>
                 </TabsContent>
