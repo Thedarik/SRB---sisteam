@@ -720,34 +720,42 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const scheduleDays = groupSchedule?.toLowerCase() || ''
     let daysOfWeek: number[] = []
     
-    // Parse schedule text to get days
-    if (scheduleDays.includes('dush') || scheduleDays.includes('dushanba') || scheduleDays.includes('monday')) daysOfWeek.push(1)
-    if (scheduleDays.includes('sesh') || scheduleDays.includes('seshanba') || scheduleDays.includes('tuesday')) daysOfWeek.push(2)
-    if (scheduleDays.includes('chor') || scheduleDays.includes('chorshanba') || scheduleDays.includes('wednesday')) daysOfWeek.push(3)
-    if (scheduleDays.includes('pay') || scheduleDays.includes('payshanba') || scheduleDays.includes('thursday')) daysOfWeek.push(4)
-    if (scheduleDays.includes('jum') || scheduleDays.includes('juma') || scheduleDays.includes('friday')) daysOfWeek.push(5)
-    if (scheduleDays.includes('shan') || scheduleDays.includes('shanba') || scheduleDays.includes('saturday')) daysOfWeek.push(6)
+    // Parse schedule text to get days - Aniqroq qidirish uchun to'liq so'zlarni tekshirish
+    // MUHIM: Yakshanba (0) hech qachon qo'shilmaydi!
+    if (scheduleDays.includes('dush')) daysOfWeek.push(1) // Dushanba
+    if (scheduleDays.includes('sesh')) daysOfWeek.push(2) // Seshanba
+    if (scheduleDays.includes('chor')) daysOfWeek.push(3) // Chorshanba
+    if (scheduleDays.includes('pay')) daysOfWeek.push(4) // Payshanba
+    if (scheduleDays.includes('jum')) daysOfWeek.push(5) // Juma
+    // Shanba uchun aniqroq tekshirish - "yakshanba" ni qo'shmaslik uchun
+    if ((scheduleDays.includes('shan') && !scheduleDays.includes('yak')) || scheduleDays.includes('shanba')) daysOfWeek.push(6)
     
-    // Yakshanba (0) ni chiqarib tashlash - dars bo'lmaydi
+    // Dublikatlarni olib tashlash va saralash
+    daysOfWeek = [...new Set(daysOfWeek)].sort()
+    
+    // Yana bir bor yakshanba (0) ni filtrlash - xavfsizlik uchun
     daysOfWeek = daysOfWeek.filter(day => day !== 0)
     
     // If no specific days found, use Monday and Wednesday as default
     if (daysOfWeek.length === 0) {
-      daysOfWeek = [1, 3] // Monday and Wednesday
+      daysOfWeek = [1, 3] // Dushanba va Chorshanba
     }
     
     console.log('📅 Dars kunlari:', daysOfWeek.map(d => ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'][d]))
     
     let currentDate = new Date(start)
     let classCount = 0
-    const maxClasses = 12 // One month approximately
+    const maxClasses = 12 // 12 ta dars
     
     // Find the next class date from start date
     while (classCount < maxClasses) {
-      if (daysOfWeek.includes(currentDate.getDay())) {
+      const dayOfWeek = currentDate.getDay()
+      
+      // MUHIM: Yakshanba (0) ni hech qachon qo'shmaslik
+      if (dayOfWeek !== 0 && daysOfWeek.includes(dayOfWeek)) {
         dates.push(currentDate.toISOString().split('T')[0])
         classCount++
-        console.log(`✅ Dars ${classCount}: ${currentDate.toISOString().split('T')[0]} (${['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'][currentDate.getDay()]})`)
+        console.log(`✅ Dars ${classCount}: ${currentDate.toISOString().split('T')[0]} (${['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'][dayOfWeek]})`)
       }
       currentDate.setDate(currentDate.getDate() + 1)
       
@@ -765,17 +773,17 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const loadGroupStudents = async (groupId: string) => {
     setIsLoadingAttendance(true)
     try {
-      // Fetch students in this group
+      // Guruh o'quvchilarini olish
       const studentsResponse = await fetch(`/api/students?groupId=${groupId}`)
       const studentsResult = await studentsResponse.json()
 
       if (studentsResponse.ok && studentsResult.success) {
-        // Faqat faol o'quvchilarni ko'rsatish (inactive o'quvchilarni chiqarib tashlash)
+        // Faqat faol o'quvchilarni ko'rsatish (nofaol o'quvchilar davomatda ko'rinmasin)
         const allStudents = studentsResult.data || []
         const activeStudents = allStudents.filter((student: any) => student.status === 'active')
         setGroupStudents(activeStudents)
         
-        console.log('📊 O\'quvchilar statistikasi:', {
+        console.log('📊 Guruh o\'quvchilari statistikasi:', {
           jami: allStudents.length,
           faol: activeStudents.length,
           nofaol: allStudents.length - activeStudents.length
@@ -1076,7 +1084,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [filters, setFilters] = useState({
-    status: "all",
+    status: "all", // Default: barcha o'quvchilarni ko'rsatish
     groupId: "all",
     searchTerm: ""
   })
@@ -1223,19 +1231,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setIsLoadingStudents(true)
     setStudentsError(null)
     try {
+      // Barcha o'quvchilarni olish (faol va nofaol)
       const response = await fetch('/api/students')
       const result = await response.json()
       
       if (result.success) {
-        // Faqat faol o'quvchilarni ko'rsatish (nofaol o'quvchilarni chiqarib tashlash)
+        // Barcha o'quvchilarni saqlash - frontend'da filtrlash uchun
         const allStudents = result.data || []
-        const activeStudents = allStudents.filter((student: any) => student.status === 'active')
-        setStudentsData(activeStudents)
+        setStudentsData(allStudents)
         
         console.log('✅ O\'quvchilar yuklandi:', {
           jami: allStudents.length,
-          faol: activeStudents.length,
-          nofaol: allStudents.length - activeStudents.length
+          faol: allStudents.filter((s: any) => s.status === 'active').length,
+          nofaol: allStudents.filter((s: any) => s.status === 'inactive').length
         })
       } else {
         setStudentsError(result.error || 'Ma\'lumotlarni yuklashda xatolik')
@@ -1611,7 +1619,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     {
       title: "O'quvchilar",
       icon: <Users />,
-      badge: isClient ? studentsData.length.toString() : "0",
+      badge: isClient ? studentsData.filter(s => s.status === 'active').length.toString() : "0",
       isActive: activeTab === "students",
       onClick: () => setActiveTab("students")
     },
@@ -1748,7 +1756,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const getFilteredStudents = () => {
     let filtered = [...studentsData]
 
-    // Filter by status
+    // Filter by status (default: active)
     if (filters.status !== "all") {
       filtered = filtered.filter(student => student.status === filters.status)
     }
@@ -1776,7 +1784,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   // Reset Filters
   const resetFilters = () => {
     setFilters({
-      status: "all",
+      status: "all", // Default: barcha o'quvchilar
       groupId: "all",
       searchTerm: ""
     })
@@ -1883,13 +1891,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const adminAnalytics: AnalyticsData[] = isClient ? [
     {
       name: "Jami O'quvchilar",
-      value: studentsData.length,
+      value: studentsData.filter(s => s.status === 'active').length,
       change: studentsData.filter(s => s.status === 'active').length,
       trend: "up",
       icon: <Users className="h-4 w-4" />,
       description: "Faol o'quvchilar",
       target: 300,
-      percentage: Math.round((studentsData.length / 300) * 100)
+      percentage: Math.round((studentsData.filter(s => s.status === 'active').length / 300) * 100)
     },
     {
       name: "Oylik Daromad",
@@ -2981,7 +2989,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                           <div className="mt-4 p-3 rounded-2xl bg-background border">
                             <p className="text-sm text-muted-foreground">
                               <strong className="text-foreground">{filteredStudents.length} ta natija</strong> topildi 
-                              {filters.status !== "all" && ` • Status: ${filters.status}`}
+                              {filters.status !== "all" && ` • Status: ${filters.status === "active" ? "Faol" : filters.status === "inactive" ? "Nofaol" : "Bitirgan"}`}
                               {filters.groupId !== "all" && ` • Guruh tanlangan`}
                               {filters.searchTerm && ` • Qidiruv: "${filters.searchTerm}"`}
                             </p>
