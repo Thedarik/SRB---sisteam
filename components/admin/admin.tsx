@@ -512,7 +512,7 @@ const reportCards: ReportCard[] = [
   { title: "Umumiy Statistika", desc: "Barcha metrikalar va trendlar", icon: <PieChart className="h-6 w-6" />, color: "bg-pink-500" },
 ]
 
-type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance" | "timetable" | "attendance"
+type TabType = "dashboard" | "courses" | "students" | "certificates" | "assignments" | "reports" | "settings" | "appearance" | "timetable" | "attendance" | "general-settings"
 
 // ✅ ASOSIY O'ZGARISH: Bu yerda export qilish kerak
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
@@ -4280,12 +4280,184 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
           )}
 
+          {activeTab === "general-settings" && (
+            <div className="space-y-8">
+              {/* 🎯 Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold">Umumiy Sozlamalar</h1>
+                  <p className="text-muted-foreground mt-2">Tizim sozlamalarini boshqaring</p>
+                </div>
+              </div>
+
+              {/* 🎛️ Settings Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* UI Automation */}
+                <Card className="rounded-2xl border-2 bg-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">UI Automation</h3>
+                        <p className="text-sm text-muted-foreground">Avtomatik interfeys boshqaruvi</p>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          id="ui-automation"
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="ui-automation"
+                          className="flex items-center cursor-pointer"
+                        >
+                          <div className="relative">
+                            <div className="w-12 h-6 bg-gray-300 rounded-full shadow-inner transition-colors duration-200"></div>
+                            <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 transform translate-x-6"></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Dark Mode */}
+                <Card className="rounded-2xl border-2 bg-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Qorong'u Rejim</h3>
+                        <p className="text-sm text-muted-foreground">Tun rejimi</p>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          id="dark-mode"
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="dark-mode"
+                          className="flex items-center cursor-pointer"
+                        >
+                          <div className="relative">
+                            <div className="w-12 h-6 bg-gray-300 rounded-full shadow-inner transition-colors duration-200"></div>
+                            <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Notifications */}
+                <Card className="rounded-2xl border-2 bg-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Bildirishnomalar</h3>
+                        <p className="text-sm text-muted-foreground">Push bildirishnomalar</p>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          id="notifications"
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="notifications"
+                          className="flex items-center cursor-pointer"
+                        >
+                          <div className="relative">
+                            <div className="w-12 h-6 bg-gray-300 rounded-full shadow-inner transition-colors duration-200"></div>
+                            <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Auto Save */}
+                <Card className="rounded-2xl border-2 bg-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Avtomatik Saqlash</h3>
+                        <p className="text-sm text-muted-foreground">Ma'lumotlarni avtomatik saqlash</p>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          id="auto-save"
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor="auto-save"
+                          className="flex items-center cursor-pointer"
+                        >
+                          <div className="relative">
+                            <div className="w-12 h-6 bg-gray-300 rounded-full shadow-inner transition-colors duration-200"></div>
+                            <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Language */}
+                <Card className="rounded-2xl border-2 bg-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Til</h3>
+                        <p className="text-sm text-muted-foreground">Interfeys tili</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">O'zbek</span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Theme */}
+                <Card className="rounded-2xl border-2 bg-card">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Mavzu</h3>
+                        <p className="text-sm text-muted-foreground">Rang sxemasi</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Standart</span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+              </div>
+            </div>
+          )}
+
           {activeTab === "settings" && (
             <div className="space-y-6">
               {/* Settings Header */}
               <div className="mb-6">
                 <h2 className="text-3xl font-bold mb-2">Sozlamalar</h2>
                 <p className="text-muted-foreground">Profil va tizim sozlamalarini boshqaring</p>
+                
+                {/* Umumiy Sozlamalar Button */}
+                <div className="mt-4">
+                  <Button 
+                    onClick={() => setActiveTab("general-settings")}
+                    className="rounded-2xl px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium"
+                  >
+                    <Settings className="mr-2 h-5 w-5" />
+                    Umumiy Sozlamalar
+                  </Button>
+                </div>
               </div>
 
               <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">

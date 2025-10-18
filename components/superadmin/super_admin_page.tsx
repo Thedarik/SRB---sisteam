@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import Lottie from "lottie-react"
 import {
   Award,
   Bell,
@@ -45,6 +46,10 @@ import {
   AlertTriangle,
   Hash,
   Globe,
+  Edit,
+  Save,
+  Bookmark,
+  Trash2,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -56,6 +61,8 @@ import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import AppearanceSettings from "./bolimlar/korinish_soslamalari"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
 // Sample data for certificate management system
@@ -246,10 +253,32 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentTime, setCurrentTime] = useState(new Date())
 
+  // Theme Colors State (localStorage)
+  const [themeColors, setThemeColors] = useState({
+    primary: "#2563EB",    // blue-600
+    secondary: "#9333EA",  // purple-600
+    accent: "#16A34A"      // green-600
+  })
+
   // Real-time clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
+  }, [])
+
+  // Load theme colors from localStorage on mount
+  // Load theme colors from localStorage
+  useEffect(() => {
+    const savedColors = localStorage.getItem('superadmin-theme-colors')
+    if (savedColors) {
+      try {
+        const parsed = JSON.parse(savedColors)
+        setThemeColors(parsed)
+        console.log('✅ Saqlangan ranglar yuklandi:', parsed)
+      } catch (error) {
+        console.error('❌ Ranglarni yuklashda xatolik:', error)
+      }
+    }
   }, [])
 
   const sidebarItems = [
@@ -293,6 +322,12 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
       onClick: () => setActiveTab("analytics")
     },
     {
+      title: "Ko'rinish Sozlamalari",
+      icon: <Eye />,
+      isActive: activeTab === "appearance",
+      onClick: () => setActiveTab("appearance")
+    },
+    {
       title: "Sozlamalar",
       icon: <Settings />,
       isActive: activeTab === "settings",
@@ -329,12 +364,17 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
           {/* Header */}
           <div className="p-6 border-b">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex aspect-square size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-green-600 text-white shadow-lg">
+              <div 
+                className="flex aspect-square size-12 items-center justify-center rounded-2xl text-white shadow-lg"
+                style={{
+                  background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`
+                }}
+              >
                 <Shield className="size-6" />
               </div>
               <div>
-                <h2 className="font-bold text-lg">CertifyUZ</h2>
-                <p className="text-xs text-muted-foreground">Sertifikat Boshqaruv Tizimi</p>
+                <h2 className="font-bold text-lg">EduFlix</h2>
+                <p className="text-xs text-muted-foreground">Ta'lim Platformasi</p>
               </div>
             </div>
             
@@ -416,10 +456,15 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
           
           <div className="flex flex-1 items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Sertifikat Boshqaruv Tizimi
+              <h1 
+                className="text-xl font-bold bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`
+                }}
+              >
+                EduFlix Platformasi
               </h1>
-              <p className="text-sm text-muted-foreground">Uzbekiston uchun yagona sertifikat platformasi</p>
+              <p className="text-sm text-muted-foreground">Uzbekiston uchun yagona ta'lim platformasi</p>
             </div>
             
             <div className="flex items-center gap-2">
@@ -470,7 +515,10 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 p-8 text-white relative"
+                className="mb-8 overflow-hidden rounded-3xl p-8 text-white relative"
+                style={{
+                  background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary}, ${themeColors.accent})`
+                }}
               >
                 <div className="relative z-10">
                   <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -502,6 +550,31 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                         </Button>
                       </div>
                     </div>
+                    
+                    {/* Lottie Animation - O'ng tomonda ixcham */}
+                    <motion.div 
+                      className="hidden md:block"
+                      initial={{ opacity: 0, scale: 0.8, x: 50 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                    >
+                      <div className="w-64 h-64">
+                        <Lottie
+                          animationData={require('../../assets/lottie_animatsiya.json')}
+                          loop={true}
+                          autoplay={true}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%',
+                            filter: 'brightness(0) invert(1) drop-shadow(0 5px 15px rgba(0,0,0,0.3))',
+                            opacity: 0.6
+                          }}
+                          rendererSettings={{
+                            preserveAspectRatio: 'xMidYMid slice'
+                          }}
+                        />
+                      </div>
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>
@@ -518,7 +591,10 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                     <Card className="rounded-3xl border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-lg">
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="p-2 rounded-xl bg-primary/10">
+                          <div 
+                            className="p-2 rounded-xl"
+                            style={{ backgroundColor: `${themeColors.primary}20` }}
+                          >
                             {item.icon}
                           </div>
                           <Badge variant={item.trend === "up" ? "default" : "secondary"} className="rounded-xl">
@@ -564,8 +640,14 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                             className="flex items-center gap-4 p-4 rounded-2xl hover:bg-muted/50 transition-colors border border-transparent hover:border-primary/20"
                           >
                             <div className="relative">
-                              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                                <Award className="h-6 w-6 text-primary" />
+                              <div 
+                                className="h-12 w-12 rounded-xl flex items-center justify-center"
+                                style={{ 
+                                  backgroundColor: `${themeColors.primary}20`,
+                                  color: themeColors.primary
+                                }}
+                              >
+                                <Award className="h-6 w-6" />
                               </div>
                               <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-lg bg-muted flex items-center justify-center">
                                 <Hash className="h-3 w-3" />
@@ -588,7 +670,10 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                                   <span>{cert.completionDate}</span>
                                   <span>•</span>
                                   <span className="flex items-center gap-1">
-                                    <QrCode className="h-3 w-3" />
+                                    <QrCode 
+                                      className="h-3 w-3" 
+                                      style={{ color: themeColors.primary }}
+                                    />
                                     {cert.qrScanned} marta skanerlangladi
                                   </span>
                                 </p>
@@ -622,7 +707,10 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                             transition={{ duration: 0.3, delay: index * 0.1 }}
                             className="flex items-start gap-3"
                           >
-                            <div className={cn("p-2 rounded-xl bg-muted", activity.color)}>
+                            <div 
+                              className="p-2 rounded-xl bg-muted"
+                              style={{ color: themeColors.primary }}
+                            >
                               {activity.icon}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -803,20 +891,35 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                           <p className="font-medium">{center.phone}</p>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-4 pt-2 border-t">
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-primary">{center.admins}</p>
-                            <p className="text-xs text-muted-foreground">Adminlar</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-green-600">{center.certificates}</p>
-                            <p className="text-xs text-muted-foreground">Sertifikatlar</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-blue-600">{center.qrScans}</p>
-                            <p className="text-xs text-muted-foreground">QR Skanlar</p>
-                          </div>
-                        </div>
+                            <div className="grid grid-cols-3 gap-4 pt-2 border-t">
+                              <div className="text-center">
+                                <p 
+                                  className="text-lg font-bold"
+                                  style={{ color: themeColors.primary }}
+                                >
+                                  {center.admins}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Adminlar</p>
+                              </div>
+                              <div className="text-center">
+                                <p 
+                                  className="text-lg font-bold"
+                                  style={{ color: themeColors.accent }}
+                                >
+                                  {center.certificates}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Sertifikatlar</p>
+                              </div>
+                              <div className="text-center">
+                                <p 
+                                  className="text-lg font-bold"
+                                  style={{ color: themeColors.secondary }}
+                                >
+                                  {center.qrScans}
+                                </p>
+                                <p className="text-xs text-muted-foreground">QR Skanlar</p>
+                              </div>
+                            </div>
                       </CardContent>
                       
                       <CardFooter className="flex gap-2">
@@ -893,7 +996,10 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                             </td>
                             <td className="p-4">
                               <div className="flex items-center gap-1">
-                                <QrCode className="h-4 w-4 text-primary" />
+                                <QrCode 
+                                  className="h-4 w-4" 
+                                  style={{ color: themeColors.primary }}
+                                />
                                 <span>{cert.qrScanned}</span>
                               </div>
                             </td>
@@ -924,10 +1030,19 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                 <h2 className="text-2xl font-bold">QR Kod Tekshirish</h2>
                 <p className="text-muted-foreground">Sertifikat haqiqiyligini QR kod orqali tekshiring</p>
                 
-                <Card className="max-w-md mx-auto rounded-3xl border-2 border-dashed border-primary/50">
+                <Card 
+                  className="max-w-md mx-auto rounded-3xl border-2 border-dashed"
+                  style={{ borderColor: `${themeColors.primary}50` }}
+                >
                   <CardContent className="p-8 text-center space-y-4">
-                    <div className="mx-auto w-24 h-24 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <QrCode className="h-12 w-12 text-primary" />
+                    <div 
+                      className="mx-auto w-24 h-24 rounded-2xl flex items-center justify-center"
+                      style={{ 
+                        backgroundColor: `${themeColors.primary}20`,
+                        color: themeColors.primary
+                      }}
+                    >
+                      <QrCode className="h-12 w-12" />
                     </div>
                     <div>
                       <h3 className="font-semibold">QR Kodni Skanerlang</h3>
@@ -975,6 +1090,14 @@ export function CertificateDashboard({ onLogout }: CertificateDashboardProps) {
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {activeTab === "appearance" && (
+            <AppearanceSettings 
+              themeColors={themeColors}
+              setThemeColors={setThemeColors}
+              setActiveTab={setActiveTab}
+            />
           )}
         </main>
       </div>

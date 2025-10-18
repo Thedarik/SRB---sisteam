@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Description ixtiyoriy - agar bo'sh bo'lsa null qilamiz
+
     if (!body.colors || !body.colors.primary || !body.colors.secondary || !body.colors.accent) {
       return NextResponse.json(
         { 
@@ -98,6 +100,64 @@ export async function POST(request: NextRequest) {
       message: 'Theme muvaffaqiyatli qo\'shildi!',
       data: newTheme
     }, { status: 201 })
+
+  } catch (error: any) {
+    console.error('❌ Kutilmagan server xatosi:', error)
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Server xatosi yuz berdi',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Theme o'chirish (Super Admin tomonidan)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    
+    console.log('🗑️ Theme o\'chirish:', id)
+    
+    // ✅ 1. VALIDATSIYA
+    if (!id) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Theme ID kiritilmagan!' 
+        },
+        { status: 400 }
+      )
+    }
+
+    // ✅ 2. THEME O'CHIRISH
+    const { error: deleteError } = await supabaseAdmin
+      .from('theam')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      console.error('❌ DELETE xatosi:', deleteError)
+      
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Theme o\'chirishda xatolik yuz berdi',
+          details: deleteError.message
+        },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ Theme muvaffaqiyatli o\'chirildi:', id)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Theme muvaffaqiyatli o\'chirildi!'
+    }, { status: 200 })
 
   } catch (error: any) {
     console.error('❌ Kutilmagan server xatosi:', error)
