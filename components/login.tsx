@@ -261,8 +261,7 @@ export function LoginPage({ onAdminLogin, onSuperAdminLogin }: LoginPageProps) {
               >
                 <p className="text-xs text-muted-foreground text-center font-mono">
                   Test uchun:<br />
-                  <span className="font-semibold text-blue-600">admin</span> / <span className="font-semibold">admin123</span> (Oddiy Admin)<br />
-                  <span className="font-semibold text-purple-600">superadmin</span> / <span className="font-semibold">admin123</span> (Super Admin)
+                  <span className="font-semibold text-blue-600">admin</span> / <span className="font-semibold">admin123</span>
                 </p>
               </motion.div>
             </CardContent>
