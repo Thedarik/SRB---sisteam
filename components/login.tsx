@@ -118,7 +118,7 @@ export function LoginPage({ onAdminLogin, onSuperAdminLogin }: LoginPageProps) {
               transition={{ delay: 0.4 }}
               className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent"
             >
-              CertifyUZ
+              EduFlix
             </motion.h1>
 
             <motion.p
@@ -127,7 +127,7 @@ export function LoginPage({ onAdminLogin, onSuperAdminLogin }: LoginPageProps) {
               transition={{ delay: 0.6 }}
               className="text-muted-foreground mt-2"
             >
-              Sertifikat Boshqaruv Tizimi
+              Ta'lim Platformasi
             </motion.p>
           </div>
 
@@ -276,7 +276,7 @@ export function LoginPage({ onAdminLogin, onSuperAdminLogin }: LoginPageProps) {
             className="text-center mt-8"
           >
             <p className="text-xs text-muted-foreground">
-              © 2025 CertifyUZ. Barcha huquqlar himoyalangan.
+              © 2025 EduFlix. Barcha huquqlar himoyalangan.
             </p>
           </motion.div>
         </motion.div>
